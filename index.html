@@ -203,14 +203,14 @@ const SKILLS=[
   {name:'あまごい',desc:'+5びょう',charge:22,fn:()=>addTime(5)},
 ];
 const DIFF={
-  easy:  {time:75,types:4,balls:50,hint:2500,comboWin:3000,feverDur:9000},
-  normal:{time:60,types:5,balls:55,hint:4500,comboWin:2500,feverDur:7000},
-  hard:  {time:50,types:6,balls:60,hint:7000,comboWin:1800,feverDur:5000}};
+  easy:  {time:75,types:4,balls:90,hint:2500,comboWin:3000,feverDur:9000},
+  normal:{time:60,types:5,balls:100,hint:4500,comboWin:2500,feverDur:7000},
+  hard:  {time:50,types:6,balls:110,hint:7000,comboWin:1800,feverDur:5000}};
 const PENTA=[262,294,330,392,440,523,587,660,784,880,1047,1175];
 const MISSIONS=[
   {s:50,m:'🎯 50てん とっぱ!'},{s:150,m:'🎯 150てん すごい!'},{s:300,m:'🎯 300てん いいかんじ!'},
   {s:500,m:'🎯 500てん やったね!'},{s:1000,m:'🏆 1000てん! チャンピオン!'},{s:2000,m:'👑 2000てん!'}];
-const ADJ_F=2.5,TOUCH_F=1.6;
+const ADJ_F=2.6,TOUCH_F=2.0;
 
 // ======== STATE ========
 const cv=document.getElementById('c'),cx=cv.getContext('2d');
@@ -239,7 +239,7 @@ function resize(){
   gOffX=(screenW-W*gScale)/2;gOffY=(screenH-H*gScale)/2;
   cv.width=screenW*dpr;cv.height=screenH*dpr;
   cv.style.width=screenW+'px';cv.style.height=screenH+'px';
-  ballR=Math.floor(Math.min((W-24)/19,21));
+  ballR=Math.floor(Math.min((W-24)/26,16));
   areaL=8;areaR=W-8;areaT=60;areaB=H-24;
   // Position HUD/combo bar to match game area
   const gw=W*gScale,gh=H*gScale;
@@ -500,7 +500,7 @@ function physicsTick(){
       if(a.x-a.r<areaL){a.x=areaL+a.r;a.vx*=-.3}
       if(a.x+a.r>areaR){a.x=areaR-a.r;a.vx*=-.3}
       if(a.y+a.r>areaB){a.y=areaB-a.r;a.vy*=-.3}
-      if(a.y-a.r<areaT-ballR*8){a.y=areaT-ballR*8+a.r;a.vy*=-.1}}}
+      if(a.y-a.r<areaT-ballR*14){a.y=areaT-ballR*14+a.r;a.vy*=-.1}}}
   // Settled check
   settled=alive.every(b=>Math.abs(b.vx)<.3&&Math.abs(b.vy)<.3)}
 
@@ -510,20 +510,24 @@ function initBalls(){
   const tc=DIFF[gm.diff].types,count=DIFF[gm.diff].balls;
   for(let i=0;i<count;i++){
     const x=areaL+ballR+Math.random()*(areaR-areaL-ballR*2);
-    const y=areaT-ballR*(3+Math.random()*18);
-    balls.push(makeBall(x,y,~~(Math.random()*tc)))}}
+    const y=areaT-ballR*(2+Math.random()*28);
+    const b=makeBall(x,y,~~(Math.random()*tc));
+    b.vy=1+Math.random()*4;b.vx=(Math.random()-.5)*2;
+    balls.push(b)}}
 function checkSpawn(){
   const target=DIFF[gm.diff].balls;
   const alive=balls.filter(b=>!b.popping).length;
   const needed=target-alive-spawnQueue;
   if(needed>0)spawnQueue+=needed}
 function tickSpawn(){
-  if(spawnQueue<=0)return;spawnT++;
-  if(spawnT%3===0){const tc=DIFF[gm.diff].types;
+  if(spawnQueue<=0)return;
+  const perFrame=Math.min(spawnQueue,3);
+  for(let s=0;s<perFrame;s++){const tc=DIFF[gm.diff].types;
     const x=areaL+ballR+Math.random()*(areaR-areaL-ballR*2);
-    const b=makeBall(x,areaT-ballR*4,~~(Math.random()*tc));
-    b.vy=2+Math.random()*3;balls.push(b);spawnQueue--;
-    if(spawnQueue<=0)spawnT=0}}
+    const b=makeBall(x,areaT-ballR*(2+Math.random()*6),~~(Math.random()*tc));
+    b.vy=3+Math.random()*5;b.vx=(Math.random()-.5)*3;
+    balls.push(b);spawnQueue--}
+  if(spawnQueue<=0)spawnT=0}
 function findGroups(){
   const vis=new Set(),groups=[];
   for(const b of balls){if(vis.has(b.id)||b.popping)continue;
@@ -841,10 +845,11 @@ function scorePop(x,y,t,col,sz=22){const s=toScr(x,y);const el=document.createEl
   document.body.appendChild(el);scorePops.push(el);setTimeout(()=>{el.remove();scorePops=scorePops.filter(p=>p!==el)},900)}
 
 // ======== TOUCH INPUT ========
+let lastVirt=null;
 cv.addEventListener('pointerdown',e=>{e.preventDefault();
   if(!gm.running||gm.paused)return;
   const v=toVirt(e.clientX,e.clientY);
-  touchPos={x:v.x,y:v.y};
+  touchPos={x:v.x,y:v.y};lastVirt={x:v.x,y:v.y};
   // Find nearest ball
   let best=null,bd=Infinity;
   for(const b of balls){if(b.popping)continue;
@@ -854,12 +859,20 @@ cv.addEventListener('pointerdown',e=>{e.preventDefault();
 cv.addEventListener('pointermove',e=>{e.preventDefault();
   if(gm.paused)return;const v=toVirt(e.clientX,e.clientY);
   touchPos={x:v.x,y:v.y};
-  if(dragging)tryConnect(v.x,v.y);
+  if(dragging){
+    // Interpolate between last and current touch for smooth swiping
+    if(lastVirt){const dx=v.x-lastVirt.x,dy=v.y-lastVirt.y,dist=Math.hypot(dx,dy);
+      const step=ballR*.4;
+      if(dist>step){const n=Math.ceil(dist/step);
+        for(let i=1;i<=n;i++){const t=i/n;tryConnect(lastVirt.x+dx*t,lastVirt.y+dy*t)}}
+      else tryConnect(v.x,v.y)}
+    else tryConnect(v.x,v.y)}
+  lastVirt={x:v.x,y:v.y};
   if(gm.running&&trails.length<80)trails.push({x:v.x+(Math.random()-.5)*6,
     y:v.y+(Math.random()-.5)*6,sz:2+Math.random()*3,c:'hsl('+~~(Math.random()*360)+',75%,65%)',life:1})},{passive:false});
-cv.addEventListener('pointerup',e=>{e.preventDefault();endChain()},{passive:false});
-cv.addEventListener('pointercancel',()=>endChain());
-cv.addEventListener('pointerleave',()=>endChain());
+cv.addEventListener('pointerup',e=>{e.preventDefault();endChain();lastVirt=null},{passive:false});
+cv.addEventListener('pointercancel',()=>{endChain();lastVirt=null});
+cv.addEventListener('pointerleave',()=>{endChain();lastVirt=null});
 document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 document.getElementById('skillBtn').addEventListener('click',e=>{e.stopPropagation();if(!gm.paused)activateSkill()});
 
