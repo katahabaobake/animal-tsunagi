@@ -215,6 +215,8 @@ const ADJ_F=2.5,TOUCH_F=1.6;
 // ======== STATE ========
 const cv=document.getElementById('c'),cx=cv.getContext('2d');
 let W,H,dpr,ballR,areaL,areaR,areaT,areaB;
+let screenW,screenH,gScale=1,gOffX=0,gOffY=0;
+const VW=420;
 let balls=[],chain=[],chainType=-1,dragging=false,touchPos=null;
 let popAnim=null,spawnQueue=0,spawnT=0,nextId=0;
 let particles=[],trails=[],rings=[],speedLines=[];
@@ -231,11 +233,23 @@ let gm={diff:'easy',myAnimal:0,score:0,combo:0,maxCombo:0,popped:0,maxChain:0,
 
 // ======== RESIZE ========
 function resize(){
-  W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2.5);
-  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
-  cx.setTransform(dpr,0,0,dpr,0,0);
+  screenW=innerWidth;screenH=innerHeight;dpr=Math.min(devicePixelRatio||1,2.5);
+  W=VW;H=Math.max(600,Math.min(820,Math.round(VW*screenH/screenW)));
+  gScale=Math.min(screenW/W,screenH/H);
+  gOffX=(screenW-W*gScale)/2;gOffY=(screenH-H*gScale)/2;
+  cv.width=screenW*dpr;cv.height=screenH*dpr;
+  cv.style.width=screenW+'px';cv.style.height=screenH+'px';
   ballR=Math.floor(Math.min((W-24)/19,21));
-  areaL=8;areaR=W-8;areaT=60;areaB=H-24}
+  areaL=8;areaR=W-8;areaT=60;areaB=H-24;
+  // Position HUD/combo bar to match game area
+  const gw=W*gScale,gh=H*gScale;
+  ['hud','cw'].forEach(id=>{const el=document.getElementById(id);
+    el.style.left=gOffX+'px';el.style.width=gw+'px';el.style.right='auto'});
+  const sb=document.getElementById('skillBtn'),sg=document.getElementById('skillGauge');
+  sb.style.right=(screenW-gOffX-gw+16)+'px';
+  sg.style.right=(screenW-gOffX-gw+16)+'px'}
+function toVirt(cx2,cy2){return{x:(cx2-gOffX)/gScale,y:(cy2-gOffY)/gScale}}
+function toScr(vx,vy){return{x:gOffX+vx*gScale,y:gOffY+vy*gScale}}
 addEventListener('resize',resize);resize();
 
 // ======== AUDIO ========
@@ -715,8 +729,9 @@ function tickRipples(){for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.rad
     r.alpha*=.93;r.lineWidth*=.97;if(r.alpha<.015)rings.splice(i,1)}}
 function drawRipples(){rings.forEach(r=>{cx.globalAlpha=r.alpha;cx.strokeStyle=r.color||'#fff';cx.lineWidth=r.lineWidth;
     cx.beginPath();cx.arc(r.x,r.y,r.radius,0,Math.PI*2);cx.stroke()});cx.globalAlpha=1}
-function drawFlash(){if(flashAlpha>.005){cx.globalAlpha=flashAlpha;cx.fillStyle='#fff';cx.fillRect(-20,-20,W+40,H+40);
-    cx.globalAlpha=1;flashAlpha*=.88}}
+function drawFlash(){if(flashAlpha>.005){cx.save();cx.setTransform(dpr,0,0,dpr,0,0);
+    cx.globalAlpha=flashAlpha;cx.fillStyle='#fff';cx.fillRect(0,0,screenW,screenH);
+    cx.globalAlpha=1;cx.restore();flashAlpha*=.88}}
 function tickComboBar(){
   if(gm.combo<=0){document.getElementById('cb').style.width='0%';return}
   const elapsed=performance.now()-gm.lastClear,win=DIFF[gm.diff].comboWin;
@@ -821,25 +836,27 @@ let toasts=[],scorePops=[];
 function toast(t){const el=document.createElement('div');el.className='toast';el.textContent=t;
   el.style.bottom=18+toasts.length*10+'%';document.body.appendChild(el);toasts.push(el);
   setTimeout(()=>{el.remove();toasts=toasts.filter(x=>x!==el)},1800)}
-function scorePop(x,y,t,col,sz=22){const el=document.createElement('div');el.className='sp';el.textContent=t;
-  el.style.cssText='left:'+x+'px;top:'+y+'px;color:'+col+';font-size:'+sz+'px';
+function scorePop(x,y,t,col,sz=22){const s=toScr(x,y);const el=document.createElement('div');el.className='sp';el.textContent=t;
+  el.style.cssText='left:'+s.x+'px;top:'+s.y+'px;color:'+col+';font-size:'+(sz*gScale)+'px';
   document.body.appendChild(el);scorePops.push(el);setTimeout(()=>{el.remove();scorePops=scorePops.filter(p=>p!==el)},900)}
 
 // ======== TOUCH INPUT ========
 cv.addEventListener('pointerdown',e=>{e.preventDefault();
   if(!gm.running||gm.paused)return;
-  touchPos={x:e.clientX,y:e.clientY};
+  const v=toVirt(e.clientX,e.clientY);
+  touchPos={x:v.x,y:v.y};
   // Find nearest ball
   let best=null,bd=Infinity;
   for(const b of balls){if(b.popping)continue;
-    const d=Math.hypot(e.clientX-b.x,e.clientY-b.y);
+    const d=Math.hypot(v.x-b.x,v.y-b.y);
     if(d<ballR*TOUCH_F&&d<bd){best=b;bd=d}}
   if(best&&best.type>=0)startChain(best)},{passive:false});
 cv.addEventListener('pointermove',e=>{e.preventDefault();
-  if(gm.paused)return;touchPos={x:e.clientX,y:e.clientY};
-  if(dragging)tryConnect(e.clientX,e.clientY);
-  if(gm.running&&trails.length<80)trails.push({x:e.clientX+(Math.random()-.5)*6,
-    y:e.clientY+(Math.random()-.5)*6,sz:2+Math.random()*3,c:'hsl('+~~(Math.random()*360)+',75%,65%)',life:1})},{passive:false});
+  if(gm.paused)return;const v=toVirt(e.clientX,e.clientY);
+  touchPos={x:v.x,y:v.y};
+  if(dragging)tryConnect(v.x,v.y);
+  if(gm.running&&trails.length<80)trails.push({x:v.x+(Math.random()-.5)*6,
+    y:v.y+(Math.random()-.5)*6,sz:2+Math.random()*3,c:'hsl('+~~(Math.random()*360)+',75%,65%)',life:1})},{passive:false});
 cv.addEventListener('pointerup',e=>{e.preventDefault();endChain()},{passive:false});
 cv.addEventListener('pointercancel',()=>endChain());
 cv.addEventListener('pointerleave',()=>endChain());
@@ -979,6 +996,11 @@ function loop(now){
   if(!lastT){lastT=now;requestAnimationFrame(loop);return}
   const dt=Math.min(now-lastT,50);lastT=now;
   tickShake();tickRipples();tickSpeedLines();
+  // Clear full screen
+  cx.setTransform(dpr,0,0,dpr,0,0);
+  cx.fillStyle='#0a0020';cx.fillRect(0,0,screenW,screenH);
+  // Apply game transform (scale + center)
+  cx.setTransform(dpr*gScale,0,0,dpr*gScale,gOffX*dpr,gOffY*dpr);
   cx.save();cx.translate(shakeX,shakeY);
   drawBG(now);
   if(!gm.paused){
@@ -1022,7 +1044,8 @@ document.getElementById('resumeBtn').addEventListener('click',resumeGame);
 document.getElementById('quitBtn').addEventListener('click',quitGame);
 // Title/End screen tap sparkle
 ['ss','es'].forEach(id=>document.getElementById(id).addEventListener('click',e=>{
-  emit(e.clientX,e.clientY,8,{speed:4,size:4,
+  const v=toVirt(e.clientX,e.clientY);
+  emit(v.x,v.y,8,{speed:4,size:4,
     colors:['#ff7eb3','#ffe066','#7dd889','#5dd8cf','#b49cfc'],gravity:.1,shapes:['star','heart','circle']});
   nt(400+Math.random()*400,'triangle',.08,.06)}));
 </script>
