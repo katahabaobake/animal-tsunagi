@@ -495,41 +495,56 @@ function shNear(b){const gx=Math.floor(b.x/SH_SIZE),gy=Math.floor(b.y/SH_SIZE),r
 // ======== PHYSICS ENGINE ========
 function makeBall(x,y,type){
   return{id:nextId++,x,y,vx:0,vy:0,r:ballR,type,phase:Math.random()*Math.PI*2,
-    scale:1,alpha:1,selected:false,popping:false,popT:0,sleep:0}}
-function wakeBall(b){b.sleep=0}
-function wakeNear(b){const near=shNear(b);for(const o of near){if(o.sleep>5)o.sleep=0}}
+    scale:1,alpha:1,selected:false,popping:false,popT:0,sleep:0,px:x,py:y}}
+function wakeBall(b){b.sleep=0;b.px=b.x;b.py=b.y}
+function wakeNear(b){const near=shNear(b);for(const o of near){if(o.sleep>30){o.sleep=0;o.px=o.x;o.py=o.y}}}
 function physicsTick(){
-  const G=0.6,DAMP=0.95,ITER=4;
+  const G=0.45,DAMP=0.9,ITER=8,SLP=20;
   const alive=balls.filter(b=>!b.popping);
-  // Apply gravity & velocity only to awake balls
+  // Phase 1: Integrate awake balls only
   for(const b of alive){
-    if(b.sleep>5)continue; // sleeping ball: skip physics
-    b.vy+=G;b.vx*=DAMP;b.vy*=DAMP;b.x+=b.vx;b.y+=b.vy}
-  // Collision resolution
+    if(b.sleep>SLP)continue;
+    b.px=b.x;b.py=b.y;
+    b.vy+=G;b.vx*=DAMP;b.vy*=DAMP;
+    b.x+=b.vx;b.y+=b.vy}
+  // Phase 2: Position-only constraints
   for(let it=0;it<ITER;it++){
     shBuild(alive);
     for(let i=0;i<alive.length;i++){const a=alive[i];
+      const aS=a.sleep>SLP;
       const near=shNear(a);
       for(const b of near){
         if(b.id<=a.id)continue;
+        const bS=b.sleep>SLP;
+        if(aS&&bS)continue; // Both sleeping: skip entirely
         const dx=b.x-a.x,dy=b.y-a.y,dSq=dx*dx+dy*dy,minD=a.r+b.r;
-        if(dSq<minD*minD&&dSq>.01){const d=Math.sqrt(dSq),ov=(minD-d)*.5,nx=dx/d,ny=dy/d;
-          // Position correction only (no velocity bounce for stability)
-          a.x-=nx*ov;a.y-=ny*ov;b.x+=nx*ov;b.y+=ny*ov;
-          // Only add bounce velocity if balls are moving
-          if(a.sleep<=5||b.sleep<=5){
-            const bounce=.03;a.vx-=nx*bounce;a.vy-=ny*bounce;b.vx+=nx*bounce;b.vy+=ny*bounce;
-            a.sleep=0;b.sleep=0}}}
-      // Walls
-      if(a.x-a.r<areaL){a.x=areaL+a.r;if(a.sleep<=5)a.vx*=-.2}
-      if(a.x+a.r>areaR){a.x=areaR-a.r;if(a.sleep<=5)a.vx*=-.2}
-      if(a.y+a.r>areaB){a.y=areaB-a.r;if(a.sleep<=5)a.vy*=-.2}
-      if(a.y-a.r<areaT-ballR*6){a.y=areaT-ballR*6+a.r;if(a.sleep<=5)a.vy*=-.1}}}
-  // Sleep system: balls with tiny velocity go to sleep
+        if(dSq<minD*minD&&dSq>.001){
+          const d=Math.sqrt(dSq),ov=minD-d,nx=dx/d,ny=dy/d;
+          // Sleeping balls are near-immovable
+          const wA=aS?.02:1,wB=bS?.02:1,t=wA+wB;
+          a.x-=nx*ov*(wB/t);a.y-=ny*ov*(wB/t);
+          b.x+=nx*ov*(wA/t);b.y+=ny*ov*(wA/t);
+          // Wake sleeping ball only on big overlap
+          if(ov>1.5){if(aS){a.sleep=0;a.px=a.x;a.py=a.y}
+                     if(bS){b.sleep=0;b.px=b.x;b.py=b.y}}}}
+      // Walls (skip sleeping balls)
+      if(aS)continue;
+      if(a.x-a.r<areaL)a.x=areaL+a.r;
+      if(a.x+a.r>areaR)a.x=areaR-a.r;
+      if(a.y+a.r>areaB)a.y=areaB-a.r;
+      if(a.y-a.r<areaT-ballR*6)a.y=areaT-ballR*6+a.r}}
+  // Phase 3: Derive velocity from position change (PBD)
   for(const b of alive){
-    if(Math.abs(b.vx)<.2&&Math.abs(b.vy)<.2){b.vx=0;b.vy=0;b.sleep++}
+    if(b.sleep>SLP)continue;
+    b.vx=(b.x-b.px)*.8;b.vy=(b.y-b.py)*.8}
+  // Phase 4: Sleep detection by actual movement
+  for(const b of alive){
+    if(b.sleep>SLP)continue;
+    const moved=Math.abs(b.x-b.px)+Math.abs(b.y-b.py);
+    if(moved<.1){b.vx=0;b.vy=0;b.sleep++;
+      if(b.sleep>=SLP){b.px=b.x;b.py=b.y}}
     else b.sleep=0}
-  settled=alive.every(b=>b.sleep>5)}
+  settled=alive.every(b=>b.sleep>SLP)}
 
 // ======== BALL MANAGEMENT ========
 function initBalls(){
@@ -547,7 +562,7 @@ function checkSpawn(){
   const needed=target-alive.length-spawnQueue;
   if(needed>0){spawnQueue+=needed;
     // Wake all balls so they react to new falling balls
-    for(const b of alive)b.sleep=0}}
+    for(const b of alive){b.sleep=0;b.px=b.x;b.py=b.y}}}
 function tickSpawn(){
   if(spawnQueue<=0)return;
   const perFrame=Math.min(spawnQueue,2);
@@ -625,13 +640,15 @@ function endChain(){
 // ======== POP ANIMATION ========
 function beginPop(){
   popAnim={balls:[...chain],type:chainType,len:chain.length,time:0,phase:'charge'};
-  chain.forEach(b=>{b.selected=false});chain=[]}
+  chain.forEach(b=>{b.selected=false;b.popping=true;b.vx=0;b.vy=0});chain=[]}
 function tickPop(dt){
   if(!popAnim)return;popAnim.time+=dt;const pa=popAnim,len=pa.len;
   if(pa.phase==='charge'){
     const dur=Math.max(80,150-len*5);
     pa.balls.forEach(b=>{const prog=Math.min(pa.time/dur,1);
-      b.scale=1+prog*.4;b.vx+=(Math.random()-.5)*prog*1.5;b.vy+=(Math.random()-.5)*prog*1.5});
+      b.scale=1+prog*.4;
+      // Visual shake only (stored as offsets, not applied to physics vx/vy)
+      b._shakeX=(Math.random()-.5)*prog*3;b._shakeY=(Math.random()-.5)*prog*3});
     if(pa.time>=dur){pa.phase='explode';pa.time=0;
       triggerShake(8+len*2);
       if(len>=5)triggerFlash(.15+len*.03);
@@ -640,7 +657,7 @@ function tickPop(dt){
       if(len>=10){triggerShake(25);triggerFlash(.5);
         [[0,0],[W,0],[0,H],[W,H]].forEach(([x,y])=>emit(x,y,15,{speed:10,size:6,
           colors:['#ff7eb3','#ffe066','#7dd889','#5dd8cf','#b49cfc'],gravity:.06,shapes:['star','heart','diamond']}))}
-      pa.balls.forEach((b,i)=>{b.popping=true;b.popT=0;sfxPop(i,len);
+      pa.balls.forEach((b,i)=>{b.popping=true;b.popT=0;b._shakeX=0;b._shakeY=0;sfxPop(i,len);
         emit(b.x,b.y,15+len,{speed:5+len*.5,size:5+len*.3,
           colors:[TYPES[pa.type].color,TYPES[pa.type].light,'#fff','#ffd93d'],
           gravity:.08,shapes:['circle','circle','star','diamond','heart']});
@@ -797,7 +814,9 @@ function drawBalls(now){
   const sorted=[...balls].sort((a,b)=>a.y-b.y);
   sorted.forEach(ball=>{
     if(ball.alpha<=0)return;
-    const tp=TYPES[ball.type],px=ball.x,py=ball.y;
+    const tp=TYPES[ball.type];
+    // Apply visual shake offset for charge phase (does not affect physics)
+    const px=ball.x+(ball._shakeX||0),py=ball.y+(ball._shakeY||0);
     // Only selected balls get a subtle bounce
     const idle=ball.selected?Math.sin(now*.004+ball.phase)*1.2:0;
     const dy=py+idle;
