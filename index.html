@@ -152,7 +152,7 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
     <button class="db ab" data-a="4">🐼</button>
     <button class="db ab" data-a="5">🐸</button>
   </div>
-  <div id="skn">ネコパンチ - ランダム8こクリア</div>
+  <div id="skn">ネコパンチ - ランダム10こクリア</div>
   <div class="dr">
     <button class="db on" data-d="easy">かんたん</button>
     <button class="db" data-d="normal">ふつう</button>
@@ -195,22 +195,22 @@ const TYPES=[
   {emoji:'🐸',color:'#b49cfc',light:'#ddd2ff',name:'カエル'},
 ];
 const SKILLS=[
-  {name:'ネコパンチ',desc:'ランダム8こクリア',charge:18,fn:()=>skillClearRandom(8)},
-  {name:'イヌダッシュ',desc:'よこ一列クリア',charge:18,fn:()=>skillClearBand()},
-  {name:'ムーンジャンプ',desc:'4びょうストップ',charge:22,fn:()=>freezeTimer(4000)},
-  {name:'ファイアテイル',desc:'4こへんしん',charge:20,fn:()=>skillTransform(4)},
-  {name:'パンダロール',desc:'まんなかクリア',charge:18,fn:()=>skillClearCenter()},
-  {name:'あまごい',desc:'+5びょう',charge:22,fn:()=>addTime(5)},
+  {name:'ネコパンチ',desc:'ランダム10こクリア',charge:24,fn:()=>skillClearRandom(10)},
+  {name:'イヌダッシュ',desc:'よこ一列クリア',charge:22,fn:()=>skillClearBand()},
+  {name:'ムーンジャンプ',desc:'6びょうストップ',charge:20,fn:()=>freezeTimer(6000)},
+  {name:'ファイアテイル',desc:'7こへんしん',charge:20,fn:()=>skillTransform(7)},
+  {name:'パンダロール',desc:'まんなかクリア',charge:22,fn:()=>skillClearCenter()},
+  {name:'あまごい',desc:'+6びょう',charge:24,fn:()=>addTime(6)},
 ];
 const DIFF={
-  easy:  {time:75,types:4,balls:90,hint:2500,comboWin:3000,feverDur:9000},
-  normal:{time:60,types:5,balls:100,hint:4500,comboWin:2500,feverDur:7000},
-  hard:  {time:50,types:6,balls:110,hint:7000,comboWin:1800,feverDur:5000}};
+  easy:  {time:80,types:4,balls:75,hint:2000,comboWin:3500,feverDur:10000},
+  normal:{time:65,types:5,balls:82,hint:4000,comboWin:2800,feverDur:8000},
+  hard:  {time:50,types:6,balls:90,hint:6000,comboWin:2000,feverDur:6000}};
 const PENTA=[262,294,330,392,440,523,587,660,784,880,1047,1175];
 const MISSIONS=[
-  {s:50,m:'🎯 50てん とっぱ!'},{s:150,m:'🎯 150てん すごい!'},{s:300,m:'🎯 300てん いいかんじ!'},
-  {s:500,m:'🎯 500てん やったね!'},{s:1000,m:'🏆 1000てん! チャンピオン!'},{s:2000,m:'👑 2000てん!'}];
-const ADJ_F=2.6,TOUCH_F=2.0;
+  {s:80,m:'🎯 80てん とっぱ!'},{s:200,m:'🎯 200てん すごい!'},{s:400,m:'🎯 400てん いいかんじ!'},
+  {s:700,m:'🎯 700てん やったね!'},{s:1200,m:'🏆 1200てん! チャンピオン!'},{s:2000,m:'👑 2000てん!'}];
+const ADJ_F=2.2,TOUCH_F=1.8;
 
 // ======== STATE ========
 const cv=document.getElementById('c'),cx=cv.getContext('2d');
@@ -239,15 +239,17 @@ function resize(){
   gOffX=(screenW-W*gScale)/2;gOffY=(screenH-H*gScale)/2;
   cv.width=screenW*dpr;cv.height=screenH*dpr;
   cv.style.width=screenW+'px';cv.style.height=screenH+'px';
-  ballR=Math.floor(Math.min((W-24)/26,16));
+  ballR=Math.floor(Math.min((W-24)/23,18));
   areaL=8;areaR=W-8;areaT=60;areaB=H-24;
   // Position HUD/combo bar to match game area
   const gw=W*gScale,gh=H*gScale;
   ['hud','cw'].forEach(id=>{const el=document.getElementById(id);
     el.style.left=gOffX+'px';el.style.width=gw+'px';el.style.right='auto'});
   const sb=document.getElementById('skillBtn'),sg=document.getElementById('skillGauge');
-  sb.style.right=(screenW-gOffX-gw+16)+'px';
-  sg.style.right=(screenW-gOffX-gw+16)+'px'}
+  const gameRight=screenW-gOffX-gw;
+  sb.style.right=(gameRight+16)+'px';
+  sg.style.right=(gameRight+16)+'px';
+  document.getElementById('vol').style.right=(gameRight+8)+'px'}
 function toVirt(cx2,cy2){return{x:(cx2-gOffX)/gScale,y:(cy2-gOffY)/gScale}}
 function toScr(vx,vy){return{x:gOffX+vx*gScale,y:gOffY+vy*gScale}}
 addEventListener('resize',resize);resize();
@@ -481,27 +483,38 @@ function drawFrog(x,y,r,s,tp,eyeH){
   cx.beginPath();cx.ellipse(x-r*.45,y+r*.05,r*.12,r*.08,0,0,Math.PI*2);cx.fill();
   cx.beginPath();cx.ellipse(x+r*.45,y+r*.05,r*.12,r*.08,0,0,Math.PI*2);cx.fill()}
 
+// ======== SPATIAL HASH GRID ========
+let shGrid={};const SH_SIZE=42;
+function shBuild(list){shGrid={};for(const b of list){
+  const k=(Math.floor(b.x/SH_SIZE))+','+(Math.floor(b.y/SH_SIZE));
+  if(!shGrid[k])shGrid[k]=[];shGrid[k].push(b)}}
+function shNear(b){const gx=Math.floor(b.x/SH_SIZE),gy=Math.floor(b.y/SH_SIZE),r=[];
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+    const c=shGrid[(gx+dx)+','+(gy+dy)];if(c)for(const o of c)if(o!==b)r.push(o)}return r}
+
 // ======== PHYSICS ENGINE ========
 function makeBall(x,y,type){
   return{id:nextId++,x,y,vx:0,vy:0,r:ballR,type,phase:Math.random()*Math.PI*2,
     scale:1,alpha:1,selected:false,popping:false,popT:0}}
 function physicsTick(){
-  const G=0.5,DAMP=0.97,ITER=5;
+  const G=0.6,DAMP=0.96,ITER=4;
   const alive=balls.filter(b=>!b.popping);
   for(const b of alive){b.vy+=G;b.vx*=DAMP;b.vy*=DAMP;b.x+=b.vx;b.y+=b.vy}
   for(let it=0;it<ITER;it++){
+    shBuild(alive);
     for(let i=0;i<alive.length;i++){const a=alive[i];
-      for(let j=i+1;j<alive.length;j++){const b=alive[j];
+      const near=shNear(a);
+      for(const b of near){
+        if(b.id<=a.id)continue;
         const dx=b.x-a.x,dy=b.y-a.y,dSq=dx*dx+dy*dy,minD=a.r+b.r;
         if(dSq<minD*minD&&dSq>.01){const d=Math.sqrt(dSq),ov=(minD-d)*.5,nx=dx/d,ny=dy/d;
           a.x-=nx*ov;a.y-=ny*ov;b.x+=nx*ov;b.y+=ny*ov;
-          a.vx-=nx*.03;a.vy-=ny*.03;b.vx+=nx*.03;b.vy+=ny*.03}}
+          const bounce=.05;a.vx-=nx*bounce;a.vy-=ny*bounce;b.vx+=nx*bounce;b.vy+=ny*bounce}}
       // Walls
       if(a.x-a.r<areaL){a.x=areaL+a.r;a.vx*=-.3}
       if(a.x+a.r>areaR){a.x=areaR-a.r;a.vx*=-.3}
       if(a.y+a.r>areaB){a.y=areaB-a.r;a.vy*=-.3}
-      if(a.y-a.r<areaT-ballR*14){a.y=areaT-ballR*14+a.r;a.vy*=-.1}}}
-  // Settled check
+      if(a.y-a.r<areaT-ballR*6){a.y=areaT-ballR*6+a.r;a.vy*=-.1}}}
   settled=alive.every(b=>Math.abs(b.vx)<.3&&Math.abs(b.vy)<.3)}
 
 // ======== BALL MANAGEMENT ========
@@ -510,9 +523,9 @@ function initBalls(){
   const tc=DIFF[gm.diff].types,count=DIFF[gm.diff].balls;
   for(let i=0;i<count;i++){
     const x=areaL+ballR+Math.random()*(areaR-areaL-ballR*2);
-    const y=areaT-ballR*(2+Math.random()*28);
+    const y=areaT-ballR*(2+Math.random()*10);
     const b=makeBall(x,y,~~(Math.random()*tc));
-    b.vy=1+Math.random()*4;b.vx=(Math.random()-.5)*2;
+    b.vy=2+Math.random()*3;b.vx=(Math.random()-.5)*1.5;
     balls.push(b)}}
 function checkSpawn(){
   const target=DIFF[gm.diff].balls;
@@ -521,29 +534,35 @@ function checkSpawn(){
   if(needed>0)spawnQueue+=needed}
 function tickSpawn(){
   if(spawnQueue<=0)return;
-  const perFrame=Math.min(spawnQueue,3);
+  const perFrame=Math.min(spawnQueue,2);
   for(let s=0;s<perFrame;s++){const tc=DIFF[gm.diff].types;
     const x=areaL+ballR+Math.random()*(areaR-areaL-ballR*2);
-    const b=makeBall(x,areaT-ballR*(2+Math.random()*6),~~(Math.random()*tc));
-    b.vy=3+Math.random()*5;b.vx=(Math.random()-.5)*3;
+    const b=makeBall(x,areaT-ballR*(2+Math.random()*4),~~(Math.random()*tc));
+    b.vy=3+Math.random()*4;b.vx=(Math.random()-.5)*2;
     balls.push(b);spawnQueue--}
   if(spawnQueue<=0)spawnT=0}
 function findGroups(){
+  const alive=balls.filter(b=>!b.popping);shBuild(alive);
   const vis=new Set(),groups=[];
-  for(const b of balls){if(vis.has(b.id)||b.popping)continue;
+  for(const b of alive){if(vis.has(b.id))continue;
     const grp=[],q=[b];vis.add(b.id);
     while(q.length>0){const c=q.shift();grp.push(c);
-      for(const o of balls){if(!vis.has(o.id)&&!o.popping&&o.type===c.type&&
+      const near=shNear(c);
+      for(const o of near){if(!vis.has(o.id)&&!o.popping&&o.type===c.type&&
         Math.hypot(o.x-c.x,o.y-c.y)<ballR*ADJ_F){vis.add(o.id);q.push(o)}}}
     if(grp.length>=3)groups.push(grp)}
   return groups}
 function hasValid(){return findGroups().length>0}
 function ensureValid(){
   let att=0;
-  while(!hasValid()&&att<30){const tc=DIFF[gm.diff].types;
-    const alive=balls.filter(b=>!b.popping);
-    for(let i=0;i<Math.min(8,alive.length);i++){
-      alive[~~(Math.random()*alive.length)].type=~~(Math.random()*tc)}att++}
+  while(!hasValid()&&att<15){const tc=DIFF[gm.diff].types;
+    const alive=balls.filter(b=>!b.popping);shBuild(alive);
+    // Smart shuffle: make nearby balls the same type
+    for(let i=0;i<3;i++){const b=alive[~~(Math.random()*alive.length)];
+      const near=shNear(b).filter(o=>!o.popping);
+      if(near.length>=2){const tp=~~(Math.random()*tc);
+        b.type=tp;near[0].type=tp;near[1].type=tp;break}}
+    att++}
   if(att>0&&gm.running)toast('🔄 シャッフル!')}
 function findHint(){const groups=findGroups();if(!groups.length)return null;
   return groups.reduce((a,b)=>b.length>a.length?b:a,groups[0])}
@@ -555,14 +574,21 @@ function startChain(ball){
   sfxConn(1);haptic(10);hintT=0;hintGroup=null}
 function tryConnect(px,py){
   if(!dragging||!chain.length)return;
-  // Undo: back to previous
-  if(chain.length>=2){const prev=chain[chain.length-2];
-    if(Math.hypot(px-prev.x,py-prev.y)<ballR*1.2){chain.pop().selected=false;sfxConn(chain.length);return}}
-  const touchR=ballR*TOUCH_F;
+  // Undo: back to previous (check distance to prev vs last)
+  if(chain.length>=2){const prev=chain[chain.length-2],last=chain[chain.length-1];
+    const dPrev=Math.hypot(px-prev.x,py-prev.y),dLast=Math.hypot(px-last.x,py-last.y);
+    if(dPrev<ballR*1.5&&dPrev<dLast){chain.pop().selected=false;sfxConn(chain.length);return}}
+  const touchR=ballR*TOUCH_F,last=chain[chain.length-1];
+  // Find best connectable ball (closest to touch)
+  let best=null,bestD=Infinity;
   for(const b of balls){
     if(b.selected||b.popping||b.type!==chainType)continue;
-    if(Math.hypot(px-b.x,py-b.y)>touchR)continue;
-    if(!chain.some(c=>Math.hypot(c.x-b.x,c.y-b.y)<ballR*ADJ_F))continue;
+    const dt=Math.hypot(px-b.x,py-b.y);
+    if(dt>touchR)continue;
+    // Check adjacency to LAST chain ball only (not chain.some)
+    if(Math.hypot(last.x-b.x,last.y-b.y)>=ballR*ADJ_F)continue;
+    if(dt<bestD){best=b;bestD=dt}}
+  if(best){const b=best;
     b.selected=true;
     const boost=Math.min(chain.length*.05,.4);b.scale=1.35+boost;
     chain.push(b);sfxConn(chain.length);haptic(10+chain.length*3);
@@ -574,8 +600,7 @@ function tryConnect(px,py){
       for(let i=0;i<5;i++){const t=i/5;
         trails.push({x:prev.x+(b.x-prev.x)*t+(Math.random()-.5)*10,
           y:prev.y+(b.y-prev.y)*t+(Math.random()-.5)*10,
-          sz:3+Math.random()*3,c:TYPES[b.type].light,life:1})}}
-    break}}
+          sz:3+Math.random()*3,c:TYPES[b.type].light,life:1})}}}}
 function endChain(){
   if(!dragging)return;dragging=false;touchPos=null;
   if(chain.length>=3)beginPop();
@@ -620,11 +645,11 @@ function tickPop(dt){
 // ======== SCORE / COMBO ========
 function creditScore(pa){
   const len=pa.len,now=performance.now();
-  const base=len*15,bonus=len>3?(len-3)*20:0,longB=len>=7?50:0;
+  const base=len*20,bonus=len>3?(len-3)*15:0,longB=len>=7?(len-6)*25:0;
   const win=DIFF[gm.diff].comboWin;
   if(now-gm.lastClear<win)gm.combo++;else gm.combo=1;
   gm.lastClear=now;if(gm.combo>gm.maxCombo)gm.maxCombo=gm.combo;
-  const cMul=1+Math.min(gm.combo-1,6)*.5,fMul=gm.fever?2.5:1;
+  const cMul=1+Math.min(gm.combo-1,9)*.3,fMul=gm.fever?2:1;
   const earned=~~((base+bonus+longB)*cMul*fMul);
   gm.score+=earned;gm.popped+=len;if(len>gm.maxChain)gm.maxChain=len;
   document.getElementById('sv').textContent=gm.score;updateComboUI();
@@ -633,7 +658,7 @@ function creditScore(pa){
   else if(len>=7)toast('✨ '+len+'つなぎ! すごい!');
   else if(len>=5)toast('👍 '+len+'つなぎ! いいね!');
   if(gm.combo>=2){sfxCombo(gm.combo);if(gm.combo%2===0){stopBGM();startBGM()}}
-  if(gm.combo>=5&&!gm.fever)activateFever();
+  if(gm.combo>=6&&!gm.fever)activateFever();
   if(gm.combo>=3)emitSpeedLines(gm.combo,gm.combo*.2);
   const mid=pa.balls[~~(len/2)];
   const popSz=Math.min(20+len*2+(gm.combo-1)*4,42);
@@ -641,7 +666,7 @@ function creditScore(pa){
   if(earned>=300)scorePop(W/2,H*.3,earned+'てん!','#ffd93d',36);
   // Skill charge
   if(pa.type===gm.myAnimal)gm.skillCharge+=len;
-  else gm.skillCharge+=Math.floor(len*.3);
+  else gm.skillCharge+=Math.floor(len*.4);
   updateSkillUI();
   // Missions
   while(missionIdx<MISSIONS.length&&gm.score>=MISSIONS[missionIdx].s){
@@ -680,22 +705,22 @@ function skillClearRandom(n){
   for(let i=0;i<Math.min(n,alive.length);i++){const b=alive[i];
     emit(b.x,b.y,8,{speed:4,size:3,colors:[TYPES[b.type].color,'#fff']});
     b.popping=true;b.popT=0;cleared++}
-  gm.popped+=cleared;gm.score+=cleared*10;document.getElementById('sv').textContent=gm.score;
-  setTimeout(()=>{balls=balls.filter(b=>!b.popping||b.popT<1);checkSpawn()},200)}
+  gm.popped+=cleared;gm.score+=cleared*15;document.getElementById('sv').textContent=gm.score;
+  setTimeout(()=>{balls=balls.filter(b=>!b.popping);checkSpawn()},200)}
 function skillClearBand(){
   const midY=(areaT+areaB)/2,bandH=ballR*3;let cleared=0;
   balls.filter(b=>!b.popping&&Math.abs(b.y-midY)<bandH).forEach(b=>{
     emit(b.x,b.y,6,{speed:3,size:3,colors:[TYPES[b.type].color,'#fff']});
     b.popping=true;b.popT=0;cleared++});
-  gm.popped+=cleared;gm.score+=cleared*10;document.getElementById('sv').textContent=gm.score;
-  setTimeout(()=>{balls=balls.filter(b=>!b.popping||b.popT<1);checkSpawn()},200)}
+  gm.popped+=cleared;gm.score+=cleared*15;document.getElementById('sv').textContent=gm.score;
+  setTimeout(()=>{balls=balls.filter(b=>!b.popping);checkSpawn()},200)}
 function skillClearCenter(){
   const cx2=W/2,cy2=(areaT+areaB)/2,rad=ballR*4;let cleared=0;
   balls.filter(b=>!b.popping&&Math.hypot(b.x-cx2,b.y-cy2)<rad).forEach(b=>{
     emit(b.x,b.y,6,{speed:3,size:3,colors:[TYPES[b.type].color,'#fff']});
     b.popping=true;b.popT=0;cleared++});
-  gm.popped+=cleared;gm.score+=cleared*10;document.getElementById('sv').textContent=gm.score;
-  setTimeout(()=>{balls=balls.filter(b=>!b.popping||b.popT<1);checkSpawn()},200)}
+  gm.popped+=cleared;gm.score+=cleared*15;document.getElementById('sv').textContent=gm.score;
+  setTimeout(()=>{balls=balls.filter(b=>!b.popping);checkSpawn()},200)}
 function skillTransform(n){
   const alive=balls.filter(b=>!b.popping&&b.type!==gm.myAnimal);
   for(let i=alive.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[alive[i],alive[j]]=[alive[j],alive[i]]}
@@ -714,7 +739,7 @@ function activateFever(){
   clearTimeout(gm._feverTO);
   document.getElementById('ff').classList.add('on');
   const fl=document.getElementById('fl');fl.style.opacity='1';fl.style.transform='translate(-50%,-50%) scale(1)';fl.style.transition='transform .3s,opacity .3s';
-  sfxFever();toast('🔥 FEVER! スコア2.5ばい! 🔥');stopBGM();startBGM();
+  sfxFever();toast('🔥 FEVER! スコア2ばい! 🔥');stopBGM();startBGM();
   emitSpeedLines(20,1.5);triggerShake(20);triggerFlash(.4);
   const dur=DIFF[gm.diff].feverDur;
   gm._feverTO=setTimeout(()=>{if(!gm.running)return;endFever()},dur)}
@@ -774,10 +799,15 @@ function drawBalls(now){
     // Selection glow
     if(ball.selected){cx.save();cx.shadowBlur=16;cx.shadowColor=tp.color;
       cx.strokeStyle='#fff';cx.lineWidth=2.5;cx.beginPath();cx.arc(px,py+idle,br+3,0,Math.PI*2);cx.stroke();cx.restore()}
-    // Highlight same type during drag
+    // Highlight connectable balls during drag
     if(dragging&&!ball.selected&&!ball.popping&&ball.type===chainType){
-      cx.save();cx.globalAlpha=.12+Math.sin(now*.005)*.08;cx.fillStyle=tp.color;
-      cx.beginPath();cx.arc(px,py+idle,br+6,0,Math.PI*2);cx.fill();cx.restore()}
+      const lastC=chain[chain.length-1];
+      const canConnect=lastC&&Math.hypot(lastC.x-ball.x,lastC.y-ball.y)<ballR*ADJ_F;
+      if(canConnect){cx.save();cx.globalAlpha=.3+Math.sin(now*.008)*.15;cx.strokeStyle='#fff';
+        cx.lineWidth=2;cx.shadowBlur=10;cx.shadowColor=tp.color;
+        cx.beginPath();cx.arc(px,py+idle,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
+      else{cx.save();cx.globalAlpha=.06+Math.sin(now*.005)*.04;cx.fillStyle=tp.color;
+        cx.beginPath();cx.arc(px,py+idle,br+5,0,Math.PI*2);cx.fill();cx.restore()}}
     // Hint
     if(hintGroup&&hintGroup.some(h=>h.id===ball.id)){
       cx.save();cx.globalAlpha=.25+Math.sin(now*.006)*.2;cx.shadowBlur=12;cx.shadowColor='#ffd93d';
@@ -857,19 +887,22 @@ cv.addEventListener('pointerdown',e=>{e.preventDefault();
     if(d<ballR*TOUCH_F&&d<bd){best=b;bd=d}}
   if(best&&best.type>=0)startChain(best)},{passive:false});
 cv.addEventListener('pointermove',e=>{e.preventDefault();
-  if(gm.paused)return;const v=toVirt(e.clientX,e.clientY);
-  touchPos={x:v.x,y:v.y};
-  if(dragging){
-    // Interpolate between last and current touch for smooth swiping
-    if(lastVirt){const dx=v.x-lastVirt.x,dy=v.y-lastVirt.y,dist=Math.hypot(dx,dy);
-      const step=ballR*.4;
-      if(dist>step){const n=Math.ceil(dist/step);
-        for(let i=1;i<=n;i++){const t=i/n;tryConnect(lastVirt.x+dx*t,lastVirt.y+dy*t)}}
+  if(gm.paused)return;
+  // Use coalesced events for smoother input when available
+  const evts=(e.getCoalescedEvents&&e.getCoalescedEvents().length>0)?e.getCoalescedEvents():[e];
+  for(const ev of evts){const v=toVirt(ev.clientX,ev.clientY);
+    touchPos={x:v.x,y:v.y};
+    if(dragging){
+      if(lastVirt){const dx=v.x-lastVirt.x,dy=v.y-lastVirt.y,dist=Math.hypot(dx,dy);
+        const step=ballR*.35;
+        if(dist>step){const n=Math.min(Math.ceil(dist/step),40);
+          for(let i=1;i<=n;i++){const t=i/n;tryConnect(lastVirt.x+dx*t,lastVirt.y+dy*t)}}
+        else tryConnect(v.x,v.y)}
       else tryConnect(v.x,v.y)}
-    else tryConnect(v.x,v.y)}
-  lastVirt={x:v.x,y:v.y};
-  if(gm.running&&trails.length<80)trails.push({x:v.x+(Math.random()-.5)*6,
-    y:v.y+(Math.random()-.5)*6,sz:2+Math.random()*3,c:'hsl('+~~(Math.random()*360)+',75%,65%)',life:1})},{passive:false});
+    lastVirt={x:v.x,y:v.y}}
+  const vf=toVirt(e.clientX,e.clientY);
+  if(gm.running&&trails.length<80)trails.push({x:vf.x+(Math.random()-.5)*6,
+    y:vf.y+(Math.random()-.5)*6,sz:2+Math.random()*3,c:'hsl('+~~(Math.random()*360)+',75%,65%)',life:1})},{passive:false});
 cv.addEventListener('pointerup',e=>{e.preventDefault();endChain();lastVirt=null},{passive:false});
 cv.addEventListener('pointercancel',()=>{endChain();lastVirt=null});
 cv.addEventListener('pointerleave',()=>{endChain();lastVirt=null});
@@ -963,7 +996,7 @@ function endGame(){
     emit(Math.random()*W,Math.random()*H*.6,20,{speed:9,size:5,
       colors:['#ff7eb3','#ffe066','#7dd889','#5dd8cf','#b49cfc','#fff'],gravity:.07,
       shapes:['circle','star','heart','diamond']});if(++n>10)clearInterval(gm._fireworkIV)},250)}
-  const th={easy:{s1:100,s2:400,s3:1000},normal:{s1:150,s2:600,s3:1500},hard:{s1:200,s2:800,s3:2000}};
+  const th={easy:{s1:150,s2:500,s3:1200},normal:{s1:200,s2:700,s3:1800},hard:{s1:250,s2:900,s3:2200}};
   const t=th[gm.diff],starCount=s>=t.s3?3:s>=t.s2?2:s>=t.s1?1:0;
   const rk=starCount===3?'すごすぎ!':starCount===2?'すばらしい!':starCount===1?'がんばった!':'つぎはがんばろう!';
   const emj=starCount===3?'🏆':starCount===2?'🌟':starCount===1?'😊':'💪';
