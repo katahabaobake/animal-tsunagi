@@ -515,7 +515,10 @@ function physicsTick(){
       if(a.x+a.r>areaR){a.x=areaR-a.r;a.vx*=-.3}
       if(a.y+a.r>areaB){a.y=areaB-a.r;a.vy*=-.3}
       if(a.y-a.r<areaT-ballR*6){a.y=areaT-ballR*6+a.r;a.vy*=-.1}}}
-  settled=alive.every(b=>Math.abs(b.vx)<.3&&Math.abs(b.vy)<.3)}
+  // Kill micro-vibrations: zero out tiny velocities
+  for(const b of alive){
+    if(Math.abs(b.vx)<.15&&Math.abs(b.vy)<.15){b.vx=0;b.vy=0}}
+  settled=alive.every(b=>b.vx===0&&b.vy===0)}
 
 // ======== BALL MANAGEMENT ========
 function initBalls(){
@@ -782,46 +785,47 @@ function drawBalls(now){
   sorted.forEach(ball=>{
     if(ball.alpha<=0)return;
     const tp=TYPES[ball.type],px=ball.x,py=ball.y;
-    const idle=Math.sin(now*.0018+ball.phase)*1.5;
+    // Only selected balls get a subtle bounce
+    const idle=ball.selected?Math.sin(now*.004+ball.phase)*1.2:0;
+    const dy=py+idle;
     const br=ball.r*.92*ball.scale;
     cx.globalAlpha=ball.alpha;
     // Shadow
     cx.fillStyle='rgba(0,0,0,.15)';cx.beginPath();cx.arc(px+1.5,py+3.5,br*.93,0,Math.PI*2);cx.fill();
     // Body
-    cx.fillStyle=tp.color;cx.beginPath();cx.arc(px,py+idle,br,0,Math.PI*2);cx.fill();
+    cx.fillStyle=tp.color;cx.beginPath();cx.arc(px,dy,br,0,Math.PI*2);cx.fill();
     cx.strokeStyle='rgba(255,255,255,.2)';cx.lineWidth=1.5;cx.stroke();
     // Shine
     cx.fillStyle='rgba(255,255,255,.22)';cx.beginPath();
-    cx.ellipse(px-br*.15,py+idle-br*.28,br*.33,br*.18,-.3,0,Math.PI*2);cx.fill();
+    cx.ellipse(px-br*.15,dy-br*.28,br*.33,br*.18,-.3,0,Math.PI*2);cx.fill();
     // Face
-    cx.save();cx.beginPath();cx.arc(px,py+idle,br+1,0,Math.PI*2);cx.clip();
-    drawAnimal(ball.type,px,py+idle,br,now);cx.restore();
+    cx.save();cx.beginPath();cx.arc(px,dy,br+1,0,Math.PI*2);cx.clip();
+    drawAnimal(ball.type,px,dy,br,now);cx.restore();
     // Selection glow
     if(ball.selected){cx.save();cx.shadowBlur=16;cx.shadowColor=tp.color;
-      cx.strokeStyle='#fff';cx.lineWidth=2.5;cx.beginPath();cx.arc(px,py+idle,br+3,0,Math.PI*2);cx.stroke();cx.restore()}
+      cx.strokeStyle='#fff';cx.lineWidth=2.5;cx.beginPath();cx.arc(px,dy,br+3,0,Math.PI*2);cx.stroke();cx.restore()}
     // Highlight connectable balls during drag
     if(dragging&&!ball.selected&&!ball.popping&&ball.type===chainType){
       const lastC=chain[chain.length-1];
       const canConnect=lastC&&Math.hypot(lastC.x-ball.x,lastC.y-ball.y)<ballR*ADJ_F;
       if(canConnect){cx.save();cx.globalAlpha=.3+Math.sin(now*.008)*.15;cx.strokeStyle='#fff';
         cx.lineWidth=2;cx.shadowBlur=10;cx.shadowColor=tp.color;
-        cx.beginPath();cx.arc(px,py+idle,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
+        cx.beginPath();cx.arc(px,dy,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
       else{cx.save();cx.globalAlpha=.06+Math.sin(now*.005)*.04;cx.fillStyle=tp.color;
-        cx.beginPath();cx.arc(px,py+idle,br+5,0,Math.PI*2);cx.fill();cx.restore()}}
+        cx.beginPath();cx.arc(px,dy,br+5,0,Math.PI*2);cx.fill();cx.restore()}}
     // Hint
     if(hintGroup&&hintGroup.some(h=>h.id===ball.id)){
       cx.save();cx.globalAlpha=.25+Math.sin(now*.006)*.2;cx.shadowBlur=12;cx.shadowColor='#ffd93d';
-      cx.strokeStyle='#ffd93d';cx.lineWidth=2;cx.beginPath();cx.arc(px,py+idle,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
+      cx.strokeStyle='#ffd93d';cx.lineWidth=2;cx.beginPath();cx.arc(px,dy,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
     // Fall stretch effect
     if(Math.abs(ball.vy)>3&&!ball.popping){
-      const stretch=Math.min(Math.abs(ball.vy)*.015,.2);
       cx.globalAlpha=ball.alpha*.3;cx.fillStyle=tp.color;
-      cx.beginPath();cx.arc(px,py+idle-ball.vy*1.5,br*.85,0,Math.PI*2);cx.fill()}
+      cx.beginPath();cx.arc(px,dy-ball.vy*1.5,br*.85,0,Math.PI*2);cx.fill()}
     cx.globalAlpha=1})}
 function drawChainLine(now){
   if(chain.length===0)return;
   const tp=TYPES[chainType],pts=[];
-  chain.forEach(b=>{const idle=Math.sin(now*.0018+b.phase)*1.5;pts.push({x:b.x,y:b.y+idle})});
+  chain.forEach(b=>{const idle=Math.sin(now*.004+b.phase)*1.2;pts.push({x:b.x,y:b.y+idle})});
   if(dragging&&touchPos)pts.push({x:touchPos.x,y:touchPos.y});
   if(pts.length<2&&!dragging)return;
   const intensity=Math.min(chain.length/10,1);
