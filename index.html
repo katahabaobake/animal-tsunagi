@@ -495,11 +495,17 @@ function shNear(b){const gx=Math.floor(b.x/SH_SIZE),gy=Math.floor(b.y/SH_SIZE),r
 // ======== PHYSICS ENGINE ========
 function makeBall(x,y,type){
   return{id:nextId++,x,y,vx:0,vy:0,r:ballR,type,phase:Math.random()*Math.PI*2,
-    scale:1,alpha:1,selected:false,popping:false,popT:0}}
+    scale:1,alpha:1,selected:false,popping:false,popT:0,sleep:0}}
+function wakeBall(b){b.sleep=0}
+function wakeNear(b){const near=shNear(b);for(const o of near){if(o.sleep>5)o.sleep=0}}
 function physicsTick(){
-  const G=0.6,DAMP=0.96,ITER=4;
+  const G=0.6,DAMP=0.95,ITER=4;
   const alive=balls.filter(b=>!b.popping);
-  for(const b of alive){b.vy+=G;b.vx*=DAMP;b.vy*=DAMP;b.x+=b.vx;b.y+=b.vy}
+  // Apply gravity & velocity only to awake balls
+  for(const b of alive){
+    if(b.sleep>5)continue; // sleeping ball: skip physics
+    b.vy+=G;b.vx*=DAMP;b.vy*=DAMP;b.x+=b.vx;b.y+=b.vy}
+  // Collision resolution
   for(let it=0;it<ITER;it++){
     shBuild(alive);
     for(let i=0;i<alive.length;i++){const a=alive[i];
@@ -508,17 +514,22 @@ function physicsTick(){
         if(b.id<=a.id)continue;
         const dx=b.x-a.x,dy=b.y-a.y,dSq=dx*dx+dy*dy,minD=a.r+b.r;
         if(dSq<minD*minD&&dSq>.01){const d=Math.sqrt(dSq),ov=(minD-d)*.5,nx=dx/d,ny=dy/d;
+          // Position correction only (no velocity bounce for stability)
           a.x-=nx*ov;a.y-=ny*ov;b.x+=nx*ov;b.y+=ny*ov;
-          const bounce=.05;a.vx-=nx*bounce;a.vy-=ny*bounce;b.vx+=nx*bounce;b.vy+=ny*bounce}}
+          // Only add bounce velocity if balls are moving
+          if(a.sleep<=5||b.sleep<=5){
+            const bounce=.03;a.vx-=nx*bounce;a.vy-=ny*bounce;b.vx+=nx*bounce;b.vy+=ny*bounce;
+            a.sleep=0;b.sleep=0}}}
       // Walls
-      if(a.x-a.r<areaL){a.x=areaL+a.r;a.vx*=-.3}
-      if(a.x+a.r>areaR){a.x=areaR-a.r;a.vx*=-.3}
-      if(a.y+a.r>areaB){a.y=areaB-a.r;a.vy*=-.3}
-      if(a.y-a.r<areaT-ballR*6){a.y=areaT-ballR*6+a.r;a.vy*=-.1}}}
-  // Kill micro-vibrations: zero out tiny velocities
+      if(a.x-a.r<areaL){a.x=areaL+a.r;if(a.sleep<=5)a.vx*=-.2}
+      if(a.x+a.r>areaR){a.x=areaR-a.r;if(a.sleep<=5)a.vx*=-.2}
+      if(a.y+a.r>areaB){a.y=areaB-a.r;if(a.sleep<=5)a.vy*=-.2}
+      if(a.y-a.r<areaT-ballR*6){a.y=areaT-ballR*6+a.r;if(a.sleep<=5)a.vy*=-.1}}}
+  // Sleep system: balls with tiny velocity go to sleep
   for(const b of alive){
-    if(Math.abs(b.vx)<.15&&Math.abs(b.vy)<.15){b.vx=0;b.vy=0}}
-  settled=alive.every(b=>b.vx===0&&b.vy===0)}
+    if(Math.abs(b.vx)<.2&&Math.abs(b.vy)<.2){b.vx=0;b.vy=0;b.sleep++}
+    else b.sleep=0}
+  settled=alive.every(b=>b.sleep>5)}
 
 // ======== BALL MANAGEMENT ========
 function initBalls(){
@@ -532,9 +543,11 @@ function initBalls(){
     balls.push(b)}}
 function checkSpawn(){
   const target=DIFF[gm.diff].balls;
-  const alive=balls.filter(b=>!b.popping).length;
-  const needed=target-alive-spawnQueue;
-  if(needed>0)spawnQueue+=needed}
+  const alive=balls.filter(b=>!b.popping);
+  const needed=target-alive.length-spawnQueue;
+  if(needed>0){spawnQueue+=needed;
+    // Wake all balls so they react to new falling balls
+    for(const b of alive)b.sleep=0}}
 function tickSpawn(){
   if(spawnQueue<=0)return;
   const perFrame=Math.min(spawnQueue,2);
