@@ -182,7 +182,7 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
     <button class="db ab" data-a="4">🐼</button>
     <button class="db ab" data-a="5">🐸</button>
   </div>
-  <div id="skn">ネコパンチ - ランダム15こクリア</div>
+  <div id="skn">ネコラッシュ - 30こ へんしん!</div>
   <div class="sub" style="margin-bottom:4px">モード</div>
   <div class="mode-sel" id="modeSel">
     <button class="mode-btn on" data-m="timeattack">⏱ タイムアタック</button>
@@ -249,12 +249,12 @@ const TYPES=[
   {emoji:'🐸',color:'#b49cfc',light:'#ddd2ff',name:'カエル'},
 ];
 const SKILLS=[
-  {name:'ネコパンチ',desc:'ランダム15こクリア',charge:24,fn:()=>skillClearRandom(15)},
-  {name:'イヌダッシュ',desc:'よこ一列クリア',charge:22,fn:()=>skillClearBand()},
-  {name:'ムーンジャンプ',desc:'6びょうストップ',charge:20,fn:()=>freezeTimer(6000)},
-  {name:'ファイアテイル',desc:'10こへんしん',charge:20,fn:()=>skillTransform(10)},
-  {name:'パンダロール',desc:'まんなかクリア',charge:22,fn:()=>skillClearCenter()},
-  {name:'あまごい',desc:'+6びょう',charge:24,fn:()=>addTime(6)},
+  {name:'ネコラッシュ',desc:'30こ へんしん!',charge:22,fn:()=>skillMegaTransform(30)},
+  {name:'イヌハウル',desc:'1しゅるい ぜんぶへんしん!',charge:20,fn:()=>skillTypeConvert(1)},
+  {name:'ムーンタイム',desc:'スロー+15こへんしん!',charge:20,fn:()=>skillSlowMo(6000)},
+  {name:'キツネマジック',desc:'2しゅるい ぜんぶへんしん!',charge:22,fn:()=>skillTypeConvert(2)},
+  {name:'パンダウェーブ',desc:'ちかくの25こ へんしん!',charge:22,fn:()=>skillAreaTransform()},
+  {name:'レインボータイム',desc:'8びょう なんでもつながる!',charge:22,fn:()=>skillRainbowTime(8000)},
 ];
 const DIFF={
   easy:  {time:80,types:4,balls:110,hint:2000,comboWin:3500,feverDur:10000},
@@ -314,6 +314,7 @@ let gm={diff:'easy',mode:'timeattack',myAnimal:0,score:0,combo:0,maxCombo:0,popp
   _feverTO:null,_feverLabelTO:null,_feverStartT:0,_feverRemaining:0,_freezeTO:null,_freezeStartT:0,
   _freezeDur:0,_freezeRemaining:0,_fireworkIV:null,_ti:null,_pauseT:0,_gameStartT:0,
   _endlessWave:0,_waveTimer:0,_waveInterval:4000,_dangerTimer:0,_dangerActive:false,
+  _rainbowTime:false,_rainbowRemain:0,_slowMo:1,_slowRemain:0,_slowAccum:0,_reachMul:1,_skillActive:false,
   best:(()=>{try{return JSON.parse(localStorage.getItem('atB3')||'{}')}catch(e){return{}}})()};
 let stats=(()=>{try{const s=JSON.parse(localStorage.getItem('atStats'));
   return s||{totalPlays:0,totalPops:0,bestScore:0,bestChain:0,bestCombo:0,
@@ -724,11 +725,11 @@ function tryConnect(px,py){
   let best=null,bestD=Infinity;
   for(const b of balls){
     if(b.selected||b.popping)continue;
-    const typeOk=b.special==='rainbow'||last.special==='rainbow'||chainType===-1||b.type===chainType;
+    const typeOk=gm._rainbowTime||b.special==='rainbow'||last.special==='rainbow'||chainType===-1||b.type===chainType;
     if(!typeOk)continue;
     const dt=Math.hypot(px-b.x,py-b.y);
     if(dt>touchR)continue;
-    if(Math.hypot(last.x-b.x,last.y-b.y)>=ballR*ADJ_F)continue;
+    if(Math.hypot(last.x-b.x,last.y-b.y)>=ballR*ADJ_F*(gm._reachMul||1))continue;
     if(dt<bestD){best=b;bestD=dt}}
   if(best){const b=best;
     b.selected=true;
@@ -816,7 +817,12 @@ function creditScore(pa){
   gm.score+=earned;gm.popped+=len;if(len>gm.maxChain)gm.maxChain=len;
   document.getElementById('sv').textContent=gm.score;updateComboUI();
   if(len>=5)sfxBig();
-  if(len>=10)toast('🌟 '+len+'つなぎ! すごすぎ!');
+  if(len>=20){toast('🤯 '+len+'つなぎ!! かみ!!!');triggerShake(30);triggerFlash(.5);
+    for(let i=0;i<4;i++)emit(Math.random()*W,Math.random()*H*.6,25,{speed:12,size:7,
+      colors:['#ffd93d','#ff7eb3','#7dd889','#5dd8cf','#b49cfc','#fff'],gravity:.03,shapes:['star','heart','diamond']})}
+  else if(len>=15){toast('🔥 '+len+'つなぎ!! やばい!!');triggerShake(20);triggerFlash(.3);
+    emit(W/2,H/2,30,{speed:10,size:6,colors:['#ffd93d','#ff7eb3','#fff'],gravity:.04,shapes:['star','diamond']})}
+  else if(len>=10)toast('🌟 '+len+'つなぎ! すごすぎ!');
   else if(len>=7)toast('✨ '+len+'つなぎ! すごい!');
   else if(len>=5)toast('👍 '+len+'つなぎ! いいね!');
   if(gm.combo>=2){sfxCombo(gm.combo);if(gm.combo%2===0){stopBGM();startBGM()}}
@@ -863,43 +869,66 @@ function updateSkillUI(){
   else btn.classList.remove('ready')}
 function activateSkill(){
   const skill=SKILLS[gm.myAnimal];
-  if(gm.skillCharge<skill.charge||popAnim||gm.paused)return;
-  gm.skillCharge=0;updateSkillUI();
-  triggerShake(15);triggerFlash(.5);toast('⭐ '+skill.name+'! ⭐');sfxSkill();haptic(50);skill.fn()}
-function skillClearRandom(n){
+  if(gm.skillCharge<skill.charge||popAnim||gm.paused||gm._skillActive)return;
+  gm.skillCharge=0;updateSkillUI();gm._skillActive=true;
+  // Dramatic activation: big emoji + effects
+  const emoji=TYPES[gm.myAnimal].emoji;
+  const el=document.createElement('div');
+  el.style.cssText='position:absolute;top:50%;left:50%;font-size:0px;z-index:60;pointer-events:none;opacity:0;transform:translate(-50%,-50%);transition:font-size .25s cubic-bezier(.34,1.56,.64,1),opacity .2s';
+  el.textContent=emoji;document.body.appendChild(el);
+  requestAnimationFrame(()=>{el.style.fontSize='140px';el.style.opacity='1'});
+  sfxSkillActivate();haptic(80);triggerShake(30);triggerFlash(.6);
+  for(let i=0;i<4;i++)setTimeout(()=>emit(W/2,H/2,20,{speed:14,size:7,
+    colors:[TYPES[gm.myAnimal].color,TYPES[gm.myAnimal].light,'#ffd93d','#fff'],
+    gravity:.02,shapes:['star','heart','diamond','circle']}),i*50);
+  toast('⚡ '+skill.name+'! ⚡');
+  setTimeout(()=>{el.style.fontSize='200px';el.style.opacity='0';
+    setTimeout(()=>el.remove(),300);skill.fn();gm._skillActive=false},400)}
+function sfxSkillActivate(){nt(200,'square',.15,.15);nt(300,'square',.15,.12,.05);
+  nt(400,'triangle',.15,.1,.1);nt(523,'triangle',.2,.15,.15);nt(659,'triangle',.2,.12,.2);
+  nt(784,'sine',.25,.12,.25);nt(1047,'sine',.3,.1,.3);
+  if(ac){const buf=ac.createBuffer(1,~~(ac.sampleRate*.12),ac.sampleRate);const d=buf.getChannelData(0);
+    for(let j=0;j<d.length;j++)d[j]=(Math.random()-.5)*.2;const src=ac.createBufferSource();src.buffer=buf;
+    const g=ac.createGain();g.gain.setValueAtTime(.1,ac.currentTime+.3);
+    g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.42);src.connect(g).connect(mg);src.start(ac.currentTime+.3)}}
+// Transform single ball with delay + effect
+function skillTransformBall(b,delay){
+  setTimeout(()=>{b.type=gm.myAnimal;b._transformT=performance.now();b.scale=1.5;
+    emit(b.x,b.y,6,{speed:4,size:3,colors:[TYPES[gm.myAnimal].color,TYPES[gm.myAnimal].light,'#fff'],gravity:.06});
+    sfxConn(Math.min(~~(delay/25)+3,11))},delay)}
+// Cat: random 30 balls transform
+function skillMegaTransform(n){
+  const alive=balls.filter(b=>!b.popping&&!b.selected&&b.type!==gm.myAnimal);
+  for(let i=alive.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[alive[i],alive[j]]=[alive[j],alive[i]]}
+  alive.slice(0,Math.min(n,alive.length)).forEach((b,i)=>skillTransformBall(b,i*25))}
+// Dog(1type)/Fox(2types): convert all balls of N random types
+function skillTypeConvert(numTypes){
   const alive=balls.filter(b=>!b.popping&&!b.selected);
+  const types=[...new Set(alive.map(b=>b.type))].filter(t=>t!==gm.myAnimal);
+  for(let i=types.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[types[i],types[j]]=[types[j],types[i]]}
+  const ct=types.slice(0,Math.min(numTypes,types.length));
+  const targets=alive.filter(b=>ct.includes(b.type));
+  targets.forEach((b,i)=>skillTransformBall(b,i*20));
+  if(targets.length>0)setTimeout(()=>toast(TYPES[gm.myAnimal].emoji+' '+targets.length+'こ へんしん!'),targets.length*20+200)}
+// Bunny: slow time + convert 15 + extended reach
+function skillSlowMo(ms){
+  gm._slowMo=0.3;gm._slowRemain=ms;gm._reachMul=1.6;gm._slowAccum=0;
+  document.getElementById('tv').style.color='#5dd8cf';
+  const alive=balls.filter(b=>!b.popping&&!b.selected&&b.type!==gm.myAnimal);
   for(let i=alive.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[alive[i],alive[j]]=[alive[j],alive[i]]}
-  let cleared=0;
-  for(let i=0;i<Math.min(n,alive.length);i++){const b=alive[i];
-    emit(b.x,b.y,8,{speed:4,size:3,colors:[TYPES[b.type].color,'#fff']});
-    b.popping=true;b.popT=0;cleared++}
-  gm.popped+=cleared;gm.score+=cleared*15;document.getElementById('sv').textContent=gm.score;
-  setTimeout(()=>{balls=balls.filter(b=>!b.popping);checkSpawn()},200)}
-function skillClearBand(){
-  const midY=(areaT+areaB)/2,bandH=ballR*3;let cleared=0;
-  balls.filter(b=>!b.popping&&Math.abs(b.y-midY)<bandH).forEach(b=>{
-    emit(b.x,b.y,6,{speed:3,size:3,colors:[TYPES[b.type].color,'#fff']});
-    b.popping=true;b.popT=0;cleared++});
-  gm.popped+=cleared;gm.score+=cleared*15;document.getElementById('sv').textContent=gm.score;
-  setTimeout(()=>{balls=balls.filter(b=>!b.popping);checkSpawn()},200)}
-function skillClearCenter(){
-  const cx2=W/2,cy2=(areaT+areaB)/2,rad=ballR*5;let cleared=0;
-  balls.filter(b=>!b.popping&&Math.hypot(b.x-cx2,b.y-cy2)<rad).forEach(b=>{
-    emit(b.x,b.y,6,{speed:3,size:3,colors:[TYPES[b.type].color,'#fff']});
-    b.popping=true;b.popT=0;cleared++});
-  gm.popped+=cleared;gm.score+=cleared*15;document.getElementById('sv').textContent=gm.score;
-  setTimeout(()=>{balls=balls.filter(b=>!b.popping);checkSpawn()},200)}
-function skillTransform(n){
-  const alive=balls.filter(b=>!b.popping&&b.type!==gm.myAnimal);
-  for(let i=alive.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[alive[i],alive[j]]=[alive[j],alive[i]]}
-  for(let i=0;i<Math.min(n,alive.length);i++){const b=alive[i];
-    emit(b.x,b.y,8,{speed:3,size:3,colors:[TYPES[gm.myAnimal].color,'#fff']});
-    b.type=gm.myAnimal;b.scale=1.3}}
-function freezeTimer(ms){
-  gm.frozen=true;gm._freezeStartT=performance.now();gm._freezeDur=ms;
-  toast('⏸️ タイムストップ!');document.getElementById('tv').style.color='#5dd8cf';
-  gm._freezeTO=setTimeout(()=>{gm.frozen=false;document.getElementById('tv').style.color=''},ms)}
-function addTime(s){gm.timeLeft+=s;document.getElementById('tv').textContent=gm.timeLeft;toast('⏰ +'+s+'びょう!')}
+  alive.slice(0,15).forEach((b,i)=>skillTransformBall(b,i*30));
+  toast('🐰 スローモーション! リーチUP!')}
+// Panda: convert 25 nearest to center
+function skillAreaTransform(){
+  const cx2=W/2,cy2=(areaT+areaB)/2;
+  const alive=balls.filter(b=>!b.popping&&!b.selected&&b.type!==gm.myAnimal);
+  alive.sort((a,b)=>Math.hypot(a.x-cx2,a.y-cy2)-Math.hypot(b.x-cx2,b.y-cy2));
+  alive.slice(0,25).forEach((b,i)=>skillTransformBall(b,i*25));
+  addRipple(cx2,cy2,TYPES[gm.myAnimal].color,W*.6)}
+// Frog: everything connects for 8 seconds
+function skillRainbowTime(ms){
+  gm._rainbowTime=true;gm._rainbowRemain=ms;gm._reachMul=1.4;
+  toast('🌈 レインボータイム! なんでもつながる!')}
 
 // ======== FEVER ========
 function activateFever(){
@@ -976,9 +1005,9 @@ function drawBalls(now){
     if(ball.selected){cx.save();cx.shadowBlur=16;cx.shadowColor=tp.color;
       cx.strokeStyle='#fff';cx.lineWidth=2.5;cx.beginPath();cx.arc(px,dy,br+3,0,Math.PI*2);cx.stroke();cx.restore()}
     // Highlight connectable balls during drag
-    if(dragging&&!ball.selected&&!ball.popping&&(ball.type===chainType||ball.special==='rainbow'||chainType===-1)){
+    if(dragging&&!ball.selected&&!ball.popping&&(gm._rainbowTime||ball.type===chainType||ball.special==='rainbow'||chainType===-1)){
       const lastC=chain[chain.length-1];
-      const canConnect=lastC&&Math.hypot(lastC.x-ball.x,lastC.y-ball.y)<ballR*ADJ_F;
+      const canConnect=lastC&&Math.hypot(lastC.x-ball.x,lastC.y-ball.y)<ballR*ADJ_F*(gm._reachMul||1);
       if(canConnect){cx.save();cx.globalAlpha=.3+Math.sin(now*.008)*.15;cx.strokeStyle='#fff';
         cx.lineWidth=2;cx.shadowBlur=10;cx.shadowColor=tp.color;
         cx.beginPath();cx.arc(px,dy,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
@@ -1010,6 +1039,17 @@ function drawBalls(now){
           cx.beginPath();cx.moveTo(px-br*.5,dy-br*.3);cx.lineTo(px+br*.3,dy+br*.5);cx.stroke();
           cx.beginPath();cx.moveTo(px+br*.4,dy-br*.4);cx.lineTo(px-br*.2,dy+br*.4);cx.stroke()}}
       cx.restore()}
+    // Rainbow time visual - all balls get rainbow ring
+    if(gm._rainbowTime&&!ball.popping){
+      cx.save();cx.globalAlpha=.4+Math.sin(now*.006+ball.phase)*.2;cx.lineWidth=2.5;
+      cx.strokeStyle=`hsl(${(now*.08+ball.phase*60)%360},80%,65%)`;
+      cx.beginPath();cx.arc(px,dy,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
+    // Recently transformed glow (guides player to chain)
+    if(ball._transformT&&!ball.popping){const age=now-ball._transformT;
+      if(age<3000){const glow=1-age/3000;
+        cx.save();cx.globalAlpha=glow*(.35+Math.sin(now*.008)*.15);
+        cx.shadowBlur=16;cx.shadowColor=tp.color;cx.strokeStyle='#ffd93d';cx.lineWidth=2.5;
+        cx.beginPath();cx.arc(px,dy,br+5,0,Math.PI*2);cx.stroke();cx.restore()}}
     // Fall stretch effect
     if(Math.abs(ball.vy)>3&&!ball.popping){
       cx.globalAlpha=ball.alpha*.3;cx.fillStyle=tp.color;
@@ -1137,16 +1177,20 @@ function resumeGame(){
   document.getElementById('ps').classList.add('hide');document.getElementById('pauseBtn').textContent='⏸'}
 function quitGame(){
   gm.paused=false;gm.running=false;clearInterval(gm._ti);clearTimeout(gm._feverTO);clearTimeout(gm._feverLabelTO);clearTimeout(gm._freezeTO);stopBGM();
-  gm.fever=false;gm.frozen=false;popAnim=null;chain=[];dragging=false;
+  gm.fever=false;gm.frozen=false;gm._rainbowTime=false;gm._slowMo=1;gm._reachMul=1;
+  gm._rainbowRemain=0;gm._slowRemain=0;gm._skillActive=false;
+  popAnim=null;chain=[];dragging=false;
   document.getElementById('ff').classList.remove('on');document.getElementById('cb').style.width='0%';
   document.getElementById('ct').style.opacity='0';document.getElementById('ps').classList.add('hide');
   document.getElementById('hud').style.display='none';document.getElementById('cw').style.display='none';
   document.getElementById('skillBtn').style.display='none';document.getElementById('skillGauge').style.display='none';
-  document.getElementById('tl').textContent='TIME';
+  document.getElementById('tl').textContent='TIME';document.getElementById('tv').style.color='';
   document.getElementById('ss').classList.remove('hide')}
 function timerTick(){
   if(gm.mode==='endless')return;
-  if(!gm.running||gm.frozen)return;gm.timeLeft--;
+  if(!gm.running||gm.frozen)return;
+  if(gm._slowMo<1){gm._slowAccum+=gm._slowMo;if(gm._slowAccum<1)return;gm._slowAccum-=1}
+  gm.timeLeft--;
   const tv=document.getElementById('tv');tv.textContent=Math.max(0,gm.timeLeft);
   if(gm.timeLeft<=10&&gm.timeLeft>5)tv.style.color='#ffb756';
   if(gm.timeLeft<=5&&gm.timeLeft>0){tv.style.color='#ff6b6b';tv.style.animation='pulse .5s infinite';sfxCD(1);triggerFlash(.08)}
@@ -1284,6 +1328,7 @@ async function startGame(){
     timeLeft:d.time,totalTime:d.time,running:false,paused:false,fever:false,frozen:false,
     feverCount:0,lastClear:0,skillCharge:0,_feverRemaining:0,_freezeRemaining:0,
     _endlessWave:0,_waveTimer:3000,_waveInterval:ENDLESS_CFG.waveStart,_dangerTimer:0,_dangerActive:false,
+    _rainbowTime:false,_rainbowRemain:0,_slowMo:1,_slowRemain:0,_slowAccum:0,_reachMul:1,_skillActive:false,
     _gameStartT:performance.now()});
   displayScore=0;missionIdx=0;popAnim=null;chain=[];dragging=false;touchPos=null;
   spawnQueue=0;spawnT=0;hintGroup=null;hintT=0;settled=false;
@@ -1397,6 +1442,7 @@ function loop(now){
     tickSpawn();
     balls.forEach(b=>{if(!b.popping&&b.scale>1.01)b.scale+=(1-b.scale)*.15});
     if(gm.mode==='endless'&&gm.running)tickEndless(dt)}
+  if(gm._slowMo<1){cx.fillStyle='rgba(80,140,255,.07)';cx.fillRect(0,0,W,H)}
   drawDangerLine(now);
   drawBalls(now);drawChainLine(now);
   drawRipples();tickP();drawP();drawSpeedLines();
@@ -1410,7 +1456,13 @@ function loop(now){
     if(gm.combo>0){const comboWin=gm.mode==='endless'?ENDLESS_CFG.comboWin:DIFF[gm.diff].comboWin;
       if(performance.now()-gm.lastClear>comboWin){gm.combo=0;updateComboUI()}}
     if(gm.fever&&Math.random()<.3)emitSpeedLines(2,1);
-    else if(gm.combo>=3&&Math.random()<.15)emitSpeedLines(1,gm.combo*.15)}
+    else if(gm.combo>=3&&Math.random()<.15)emitSpeedLines(1,gm.combo*.15);
+    // Skill timers
+    if(gm._rainbowRemain>0){gm._rainbowRemain-=dt;
+      if(gm._rainbowRemain<=0){gm._rainbowTime=false;gm._reachMul=1;toast('🌈 レインボータイムおわり!')}}
+    if(gm._slowRemain>0){gm._slowRemain-=dt;
+      if(gm._slowRemain<=0){gm._slowMo=1;gm._reachMul=1;document.getElementById('tv').style.color='';
+        toast('⏩ スピードもどった!')}}}
   requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 
