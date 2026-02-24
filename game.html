@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>アニマルつなぎ!</title>
+<meta property="og:title" content="アニマルつなぎ!">
+<meta property="og:description" content="かわいいどうぶつをつなげてポップ!">
+<meta property="og:type" content="website">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;
@@ -77,10 +80,6 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
   animation:gs 6s ease infinite;margin-bottom:4px}
 @keyframes gs{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 .sub{font-size:14px;color:rgba(255,255,255,.55);margin-bottom:12px;text-align:center}
-.hw{max-width:300px;margin-bottom:16px}
-.hr{display:flex;align-items:center;gap:10px;margin-bottom:6px;color:rgba(255,255,255,.65);font-size:13px}
-.hr b{color:rgba(255,255,255,.85)}
-.hi{font-size:20px;min-width:28px;text-align:center}
 .dr{display:flex;gap:8px;margin-bottom:16px}
 .db{padding:13px 22px;font-size:14px;font-weight:700;border:2px solid rgba(255,255,255,.2);
   border-radius:25px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.05);
@@ -109,7 +108,6 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
 .ev{font-size:22px;font-weight:800;color:#fff}
 .esl{font-size:12px;color:rgba(255,255,255,.45)}
 .en{color:#7dd889;font-size:15px;font-weight:700;margin-bottom:12px;animation:bob 1.5s ease-in-out infinite}
-#skn{font-size:12px;color:rgba(255,255,255,.5);margin-top:-8px;margin-bottom:12px;min-height:18px}
 #cd{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   font-size:110px;font-weight:900;color:#fff;z-index:45;pointer-events:none;
   text-shadow:0 0 40px rgba(255,255,255,.4);opacity:0}
@@ -138,9 +136,6 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
 .ach-emoji{font-size:26px}
 .ach-name{font-size:11px;color:rgba(255,255,255,.8);font-weight:700;margin-top:2px}
 .ach-desc{font-size:9px;color:rgba(255,255,255,.4)}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;max-width:320px;margin-bottom:16px;text-align:center}
-.stat-val{font-size:26px;font-weight:800;color:#ffd93d}
-.stat-label{font-size:11px;color:rgba(255,255,255,.45)}
 .ach-toast{position:absolute;left:50%;top:12%;transform:translateX(-50%) translateY(20px);
   background:linear-gradient(135deg,rgba(255,217,61,.9),rgba(255,160,50,.9));backdrop-filter:blur(8px);
   color:#fff;padding:10px 22px;border-radius:16px;font-size:15px;font-weight:800;white-space:nowrap;
@@ -150,6 +145,9 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
   10%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.1)}
   20%{transform:translateX(-50%) translateY(0) scale(1)}75%{opacity:1}
   100%{opacity:0;transform:translateX(-50%) translateY(-30px) scale(.8)}}
+#urgency{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;transition:opacity .3s;
+  box-shadow:inset 0 0 100px rgba(255,50,50,.4),inset 0 0 200px rgba(255,0,0,.15)}
+@keyframes urgPulse{0%,100%{opacity:.6}50%{opacity:1}}
 </style>
 </head>
 <body>
@@ -167,12 +165,6 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
   <div class="emos"><span style="--d:0s">🐱</span><span style="--d:.12s">🐶</span><span style="--d:.24s">🐰</span><span style="--d:.36s">🦊</span><span style="--d:.48s">🐼</span><span style="--d:.6s">🐸</span></div>
   <div class="ttl">アニマル<br>つなぎ!</div>
   <div class="sub">おなじどうぶつをなぞってつなげよう!</div>
-  <div class="hw">
-    <div class="hr"><span class="hi">👆</span><b>スワイプ</b>でとなりの同じどうぶつをつなぐ</div>
-    <div class="hr"><span class="hi">✨</span><b>3びき以上</b>つなげるとポップ!</div>
-    <div class="hr"><span class="hi">💫</span><b>たくさん</b>つなげるとスペシャル!</div>
-    <div class="hr"><span class="hi">⭐</span>マイアニマルの<b>スキル</b>をつかおう!</div>
-  </div>
   <div class="sub" style="margin-bottom:6px">マイアニマル</div>
   <div class="dr" id="animalSel" style="flex-wrap:wrap;justify-content:center;gap:6px">
     <button class="db ab on" data-a="0">🐱</button>
@@ -182,11 +174,9 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
     <button class="db ab" data-a="4">🐼</button>
     <button class="db ab" data-a="5">🐸</button>
   </div>
-  <div id="skn">ネコラッシュ - 30こ へんしん!</div>
   <div class="sub" style="margin-bottom:4px">モード</div>
   <div class="mode-sel" id="modeSel">
     <button class="mode-btn on" data-m="timeattack">⏱ タイムアタック</button>
-    <button class="mode-btn" data-m="endless">♾️ エンドレス</button>
     <button class="mode-btn" data-m="daily">📅 デイリー</button>
   </div>
   <div class="daily-info" id="dailyInfo" style="display:none"></div>
@@ -198,7 +188,6 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
   <button class="btn bg" id="bgo">あそぶ!</button>
   <div class="bottom-btns">
     <button class="btn bsm" id="achBtn">🏅 じっせき</button>
-    <button class="btn bsm" id="statsBtn">📊 きろく</button>
   </div>
 </div>
 <div class="scr hide" id="es">
@@ -216,6 +205,7 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
   <div class="en" id="eN" style="display:none">⭐ ベストスコア こうしん! ⭐</div>
   <div id="ePC" style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px"></div>
   <button class="btn br" id="bre">もういっかい!</button>
+  <button class="btn bsm" id="shareBtn">📤 シェア</button>
   <button class="btn bsm" id="bback">タイトルにもどる</button>
 </div>
 <div class="scr hide" id="ps">
@@ -228,16 +218,11 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
 <div class="modal-scr hide" id="achScr">
   <div style="font-size:36px;margin-bottom:4px">🏅</div>
   <div style="font-size:clamp(22px,6vw,32px);font-weight:900;color:#ffd93d;margin-bottom:4px">じっせき</div>
-  <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px" id="achCount">0/15</div>
+  <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px" id="achCount">0/6</div>
   <div class="ach-grid" id="achGrid"></div>
   <button class="btn bsm" id="achClose">とじる</button>
 </div>
-<div class="modal-scr hide" id="statsScr">
-  <div style="font-size:36px;margin-bottom:4px">📊</div>
-  <div style="font-size:clamp(22px,6vw,32px);font-weight:900;color:#ffd93d;margin-bottom:12px">きろく</div>
-  <div class="stat-grid" id="statGrid"></div>
-  <button class="btn bsm" id="statsClose">とじる</button>
-</div>
+<div id="urgency"></div>
 <script>
 // ======== CONSTANTS ========
 const TYPES=[
@@ -265,10 +250,8 @@ const MISSIONS=[
   {s:100,m:'🎯 100てん とっぱ!'},{s:300,m:'🎯 300てん すごい!'},{s:600,m:'🎯 600てん いいかんじ!'},
   {s:1000,m:'🎯 1000てん やったね!'},{s:1800,m:'🏆 1800てん! チャンピオン!'},{s:3000,m:'👑 3000てん!'}];
 const SPECIALS=[
-  {type:'bomb',rate:.015,emoji:'💣'},
-  {type:'rainbow',rate:.01,emoji:'🌈'},
-  {type:'star',rate:.02,emoji:'⭐'},
-  {type:'ice',rate:.012,emoji:'🧊'}];
+  {type:'gold',rate:.025,emoji:'✨'},
+  {type:'rainbow',rate:.012,emoji:'🌈'}];
 const ANIMAL_POP_FX=[
   {emoji:'🐾',cs:['#ff7eb3','#ffd0e3']},
   {emoji:'🦴',cs:['#ffb756','#ffe2b8']},
@@ -276,24 +259,13 @@ const ANIMAL_POP_FX=[
   {emoji:'🔥',cs:['#ffe066','#fff3bf']},
   {emoji:'🎋',cs:['#7dd889','#c8f0cd']},
   {emoji:'💧',cs:['#b49cfc','#ddd2ff']}];
-const ENDLESS_CFG={initBalls:50,waveStart:4000,waveMin:1200,waveAccel:80,baseBatch:5,
-  dangerTime:2000,typeThresh:[0,300,800,1500],feverDur:8000,comboWin:3000,hint:4000};
 const ACHIEVEMENTS=[
   {id:'firstPop',emoji:'🎈',name:'はじめてのポップ',desc:'はじめてポップした'},
-  {id:'firstFever',emoji:'🔥',name:'はじめてのフィーバー',desc:'はじめてフィーバーした'},
-  {id:'chain5',emoji:'🔗',name:'5つなぎ',desc:'5チェインした'},
-  {id:'chain10',emoji:'⛓',name:'10つなぎ',desc:'10チェインした'},
-  {id:'chain15',emoji:'💫',name:'15つなぎ',desc:'15チェインした'},
-  {id:'combo5',emoji:'💥',name:'5コンボ',desc:'5コンボした'},
-  {id:'combo10',emoji:'🌪',name:'10コンボ',desc:'10コンボした'},
+  {id:'chain8',emoji:'⛓',name:'8つなぎ',desc:'8チェインした'},
   {id:'score1k',emoji:'🎯',name:'1000てん',desc:'1000てんとった'},
-  {id:'score3k',emoji:'👑',name:'3000てん',desc:'3000てんとった'},
-  {id:'score5k',emoji:'🏆',name:'5000てん',desc:'5000てんとった'},
+  {id:'firstFever',emoji:'🔥',name:'はじめてのフィーバー',desc:'はじめてフィーバーした'},
   {id:'play10',emoji:'🎮',name:'10かいプレイ',desc:'10かいあそんだ'},
-  {id:'play50',emoji:'🎲',name:'50かいプレイ',desc:'50かいあそんだ'},
-  {id:'allAnimal',emoji:'🐾',name:'みんなでプレイ',desc:'ぜんぶのどうぶつでプレイ'},
-  {id:'bombMaster',emoji:'💣',name:'ボムマスター',desc:'ボム10かいつかった'},
-  {id:'endless1k',emoji:'♾️',name:'エンドレス1000',desc:'エンドレスで1000てん'}];
+  {id:'score3k',emoji:'👑',name:'3000てん',desc:'3000てんとった'}];
 const ADJ_F=2.2,TOUCH_F=1.8;
 
 // ======== STATE ========
@@ -307,24 +279,29 @@ let particles=[],trails=[],rings=[],speedLines=[];
 let shakeX=0,shakeY=0,shakeMag=0,flashAlpha=0;
 let displayScore=0,lastT=0,settled=false,hintGroup=null,hintT=0;
 let missionIdx=0;
-let playCount=(()=>{try{return parseInt(localStorage.getItem('atPC')||'0')}catch(e){return 0}})();
 let gm={diff:'easy',mode:'timeattack',myAnimal:0,score:0,combo:0,maxCombo:0,popped:0,maxChain:0,
-  timeLeft:60,totalTime:60,running:false,paused:false,fever:false,frozen:false,
+  timeLeft:60,totalTime:60,running:false,paused:false,fever:false,
   feverCount:0,lastClear:0,skillCharge:0,muted:false,_starting:false,
-  _feverTO:null,_feverLabelTO:null,_feverStartT:0,_feverRemaining:0,_freezeTO:null,_freezeStartT:0,
-  _freezeDur:0,_freezeRemaining:0,_fireworkIV:null,_ti:null,_pauseT:0,_gameStartT:0,
-  _endlessWave:0,_waveTimer:0,_waveInterval:4000,_dangerTimer:0,_dangerActive:false,
+  _feverTO:null,_feverLabelTO:null,_feverStartT:0,_feverRemaining:0,
+  _fireworkIV:null,_ti:null,_pauseT:0,_gameStartT:0,
   _rainbowTime:false,_rainbowRemain:0,_slowMo:1,_slowRemain:0,_slowAccum:0,_reachMul:1,_skillActive:false,
   best:(()=>{try{return JSON.parse(localStorage.getItem('atB3')||'{}')}catch(e){return{}}})()};
 let stats=(()=>{try{const s=JSON.parse(localStorage.getItem('atStats'));
   return s||{totalPlays:0,totalPops:0,bestScore:0,bestChain:0,bestCombo:0,
-    feverCount:0,totalPlayTime:0,usedAnimals:[],bombsUsed:0}}
+    feverCount:0,totalPlayTime:0,usedAnimals:[]}}
   catch(e){return{totalPlays:0,totalPops:0,bestScore:0,bestChain:0,bestCombo:0,
-    feverCount:0,totalPlayTime:0,usedAnimals:[],bombsUsed:0}}})();
+    feverCount:0,totalPlayTime:0,usedAnimals:[]}}})();
 function saveStats(){try{localStorage.setItem('atStats',JSON.stringify(stats))}catch(e){}}
 let unlockedAch=(()=>{try{return JSON.parse(localStorage.getItem('atAch')||'[]')}catch(e){return[]}})();
 function saveAch(){try{localStorage.setItem('atAch',JSON.stringify(unlockedAch))}catch(e){}}
-let dailyBest=(()=>{try{return JSON.parse(localStorage.getItem('atDaily')||'{}')}catch(e){return{}}})();
+let dailyBest=(()=>{try{const d=JSON.parse(localStorage.getItem('atDaily')||'{}');
+  // Clean up daily entries older than 30 days
+  const now=Date.now(),cutoff=30*24*60*60*1000;
+  let cleaned=false;for(const k in d){const parts=k.split('-');
+    if(parts.length===3){const dt=new Date(+parts[0],+parts[1]-1,+parts[2]).getTime();
+      if(now-dt>cutoff){delete d[k];cleaned=true}}}
+  if(cleaned)try{localStorage.setItem('atDaily',JSON.stringify(d))}catch(e){}
+  return d}catch(e){return{}}})();
 let dailyRng=null;
 
 // ======== RESIZE ========
@@ -380,7 +357,6 @@ function sfxEnd(){[784,659,523,440,349].forEach((f,i)=>nt(f,'sine',.3,.15,i*.17)
 function sfxCD(n){nt(n===0?880:440,'square',.1,.12)}
 function sfxSkill(){[523,659,784,1047].forEach((f,i)=>nt(f,'triangle',.2,.15,i*.06))}
 function sfxValid(){nt(523,'sine',.12,.15);nt(659,'sine',.12,.12,.06);nt(784,'sine',.12,.1,.12)}
-function sfxBubblePop(){nt(880,'sine',.08,.2);nt(1320,'sine',.06,.1,.03);nt(660,'triangle',.1,.08,.02)}
 function sfxBomb(){nt(80,'sawtooth',.3,.2);nt(60,'square',.4,.15,.05);nt(120,'triangle',.2,.1,.1);
   if(ac){const buf=ac.createBuffer(1,~~(ac.sampleRate*.08),ac.sampleRate);const d=buf.getChannelData(0);
     for(let j=0;j<d.length;j++)d[j]=(Math.random()-.5)*.3;const src=ac.createBufferSource();src.buffer=buf;
@@ -407,7 +383,7 @@ function stopBGM(){bgmOn=false;clearTimeout(bgmTO)}
 function emit(x,y,n,opts={}){
   const{speed:sp=5,size:sz=5,colors:cs=['#fff','#ffd93d'],gravity:gr=.12,decay:dc=.025,
     shapes:sh=['circle']}=opts;
-  for(let i=0;i<n&&particles.length<800;i++){const a=Math.random()*Math.PI*2,v=sp*(.4+Math.random()*.8);
+  for(let i=0;i<n&&particles.length<500;i++){const a=Math.random()*Math.PI*2,v=sp*(.4+Math.random()*.8);
     particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1,sz:sz*(.4+Math.random()*.8),
       c:cs[~~(Math.random()*cs.length)],life:1,dc:dc+Math.random()*.015,gr,
       shape:sh[~~(Math.random()*sh.length)],rot:Math.random()*Math.PI*2,rotV:(Math.random()-.5)*.2})}}
@@ -463,7 +439,12 @@ function drawBG(now){
   g.addColorStop(0,`hsl(${h},${sat}%,${lit}%)`);g.addColorStop(.4,`hsl(${h-8},${sat-7}%,${lit+6}%)`);
   g.addColorStop(.7,`hsl(${h+8},${sat-10}%,${lit+12}%)`);g.addColorStop(1,`hsl(${h+15},${sat-3}%,${lit+20}%)`);
   cx.fillStyle=g;cx.fillRect(0,0,W,H);
-  bgStars.forEach(s=>{cx.globalAlpha=Math.max(0,.25+Math.sin(bgT*s.sp+s.ph)*.35);cx.fillStyle='#fff';
+  const starSpeedMul=gm.fever?3:1;const starDim=gm.running&&gm.timeLeft<=5&&gm.timeLeft>0?.4:1;
+  bgStars.forEach(s=>{const flicker=Math.sin(bgT*s.sp*starSpeedMul+s.ph);
+    let a=Math.max(0,.25+flicker*.35)*starDim;
+    if(gm.fever)a=Math.max(0,.3+flicker*.4);
+    const satShift=gm.combo>=5?`hsl(${(bgT*40+s.ph*60)%360},80%,80%)`:'#fff';
+    cx.globalAlpha=a;cx.fillStyle=gm.combo>=5?satShift:'#fff';
     cx.beginPath();cx.arc(s.x*W,s.y*H,s.s,0,Math.PI*2);cx.fill()});
   bgDeco.forEach(d=>{d.y-=d.drift/H;if(d.y<-.05){d.y=1.05;d.x=Math.random()}
     const px=d.x*W+Math.sin((now||0)*d.swaySpd+d.phase)*d.sway,py=d.y*H;
@@ -599,9 +580,9 @@ function shNear(b){const gx=Math.floor(b.x/SH_SIZE),gy=Math.floor(b.y/SH_SIZE),r
 function makeBall(x,y,type,special){
   return{id:nextId++,x,y,vx:0,vy:0,r:ballR,type,phase:Math.random()*Math.PI*2,
     scale:1,alpha:1,selected:false,popping:false,popT:0,sleep:0,px:x,py:y,
-    special:special||null,iceState:special==='ice'?'frozen':null}}
+    special:special||null}}
 function rollSpecial(){
-  if(gm.score<50)return null;
+  if(gm.score<80)return null;
   const r=Math.random();let a=0;
   for(const s of SPECIALS){a+=s.rate;if(r<a)return s.type}return null}
 function wakeBall(b){b.sleep=0;b.px=b.x;b.py=b.y}
@@ -616,8 +597,9 @@ function physicsTick(){
     b.vy+=G;b.vx*=DAMP;b.vy*=DAMP;
     b.x+=b.vx;b.y+=b.vy}
   // Phase 2: Position-only constraints
+  shBuild(alive);
   for(let it=0;it<ITER;it++){
-    shBuild(alive);
+    if(it===4)shBuild(alive);
     for(let i=0;i<alive.length;i++){const a=alive[i];
       const aS=a.sleep>SLP;
       const near=shNear(a);
@@ -658,8 +640,8 @@ function physicsTick(){
 function initBalls(){
   balls=[];nextId=0;
   const rng=gm.mode==='daily'?dailyRng:Math.random;
-  const tc=gm.mode==='endless'?3:DIFF[gm.diff].types;
-  const count=gm.mode==='endless'?ENDLESS_CFG.initBalls:DIFF[gm.diff].balls;
+  const tc=DIFF[gm.diff].types;
+  const count=DIFF[gm.diff].balls;
   for(let i=0;i<count;i++){
     const x=areaL+ballR+rng()*(areaR-areaL-ballR*2);
     const y=areaT-ballR*(2+rng()*14);
@@ -667,7 +649,6 @@ function initBalls(){
     b.vy=3+rng()*4;b.vx=(rng()-.5)*2;
     balls.push(b)}}
 function checkSpawn(){
-  if(gm.mode==='endless')return;
   const target=DIFF[gm.diff].balls;
   const alive=balls.filter(b=>!b.popping);
   const needed=target-alive.length-spawnQueue;
@@ -676,7 +657,7 @@ function checkSpawn(){
 function tickSpawn(){
   if(spawnQueue<=0)return;
   const perFrame=Math.min(spawnQueue,4);
-  const tc=gm.mode==='endless'?getEndlessTypes():DIFF[gm.diff].types;
+  const tc=DIFF[gm.diff].types;
   for(let s=0;s<perFrame;s++){
     const x=areaL+ballR+Math.random()*(areaR-areaL-ballR*2);
     const sp=rollSpecial();
@@ -698,7 +679,7 @@ function findGroups(){
 function hasValid(){return findGroups().length>0}
 function ensureValid(){
   let att=0;
-  while(!hasValid()&&att<15){const tc=gm.mode==='endless'?getEndlessTypes():DIFF[gm.diff].types;
+  while(!hasValid()&&att<15){const tc=DIFF[gm.diff].types;
     const alive=balls.filter(b=>!b.popping);shBuild(alive);
     // Smart shuffle: make nearby balls the same type
     for(let i=0;i<3;i++){const b=alive[~~(Math.random()*alive.length)];
@@ -736,7 +717,7 @@ function tryConnect(px,py){
     if(chainType===-1&&b.special!=='rainbow')chainType=b.type;
     const boost=Math.min(chain.length*.06,.5);b.scale=1.4+boost;
     chain.push(b);sfxConn(chain.length);haptic(10+chain.length*3);
-    if(chain.length>=4)triggerShake(chain.length*1.2);
+    if(chain.length>=5)triggerShake(chain.length*1.2);
     if(chain.length>=5)flashAlpha=Math.min(flashAlpha+.06,.2);
     if(chain.length===3){sfxValid();haptic(20)}
     if(chain.length>=2){const prev=chain[chain.length-2];
@@ -761,59 +742,57 @@ function tickPop(dt){
       b.scale=1+prog*.4;
       b._shakeX=(Math.random()-.5)*prog*3;b._shakeY=(Math.random()-.5)*prog*3});
     if(pa.time>=dur){pa.phase='explode';pa.time=0;
-      triggerShake(6+len*3);
-      if(len>=3)triggerFlash(.08+len*.03);
-      if(len>=7){addRipple(W/2,H/2,'#ffd93d',W*.4);
+      // Visual merikari: scale effects by chain length
+      if(len>=5)triggerShake(6+len*3);
+      if(len>=5)triggerFlash(.08+len*.03);
+      if(len>=8){addRipple(W/2,H/2,'#ffd93d',W*.4);
         [0,.03,.06,.09].forEach((d,i)=>nt(200+i*100,'triangle',.08,.1,d))}
       if(len>=10){triggerShake(25);triggerFlash(.5);
         [[0,0],[W,0],[0,H],[W,H]].forEach(([x,y])=>emit(x,y,15,{speed:10,size:6,
           colors:['#ff7eb3','#ffe066','#7dd889','#5dd8cf','#b49cfc'],gravity:.06,shapes:['star','heart','diamond']}))}
       pa.balls.forEach((b,i)=>{b.popping=true;b.popT=0;b._shakeX=0;b._shakeY=0;sfxPop(i,len);
         const fx=ANIMAL_POP_FX[b.type]||ANIMAL_POP_FX[0];
-        emit(b.x,b.y,20+len*2,{speed:6+len*.7,size:6+len*.4,
+        const emitCount=len<5?8:20+len*2;
+        emit(b.x,b.y,emitCount,{speed:6+len*.7,size:6+len*.4,
           colors:[TYPES[b.type]?TYPES[b.type].color:fx.cs[0],fx.cs[1],'#fff','#ffd93d'],
           gravity:.07,shapes:['circle','circle','star','diamond','heart']});
         addRipple(b.x,b.y,TYPES[b.type]?TYPES[b.type].color:'#fff',60+len*8)});
       if(len>=5){const mid=pa.balls[~~(len/2)];addRipple(mid.x,mid.y,'#fff',W*.4+len*10)}
-      emitSpeedLines(len*2,len*.15)}}
+      if(len>=8)emitSpeedLines(len*2,len*.15);
+      else if(len>=5)emitSpeedLines(len,len*.1)}}
   else if(pa.phase==='explode'){
     pa.balls.forEach(b=>{b.popT+=dt;const prog=Math.min(b.popT/140,1);
       b.scale=1.6*(1-prog*prog);b.alpha=1-prog});
     if(pa.time>=120)pa.phase='done'}
   if(pa.phase==='done'){
-    // Handle special balls
-    let extraPopped=0,starBonus=0,bombUsed=false;
-    const survivors=[];
+    // Handle special balls - Gold gives +100 bonus AND explodes nearby
+    let extraPopped=0,goldBonus=0,goldUsed=false;
     for(const b of pa.balls){
-      if(b.special==='ice'&&b.iceState==='frozen'){
-        b.iceState='thawed';b.popping=false;b.popT=0;b.scale=1;b.alpha=1;b.selected=false;
-        emit(b.x,b.y,8,{speed:3,size:4,colors:['#aaddff','#fff'],gravity:.05});survivors.push(b);continue}
-      if(b.special==='star')starBonus+=75;
-      if(b.special==='bomb'){bombUsed=true;stats.bombsUsed++;
-        sfxBomb();triggerShake(20);triggerFlash(.4);addRipple(b.x,b.y,'#ff6b6b',W*.5);
+      if(b.special==='gold'){goldUsed=true;goldBonus+=100;
+        sfxBomb();triggerShake(20);triggerFlash(.4);addRipple(b.x,b.y,'#ffd93d',W*.5);
         const nearby=balls.filter(o=>!o.popping&&!pa.balls.includes(o)&&Math.hypot(o.x-b.x,o.y-b.y)<ballR*3.5);
         for(const o of nearby){o.popping=true;o.popT=0;extraPopped++;
-          emit(o.x,o.y,10,{speed:5,size:4,colors:['#ff6b6b','#ffd93d','#fff'],gravity:.08})}}
+          emit(o.x,o.y,10,{speed:5,size:4,colors:['#ffd93d','#ffe066','#fff'],gravity:.08})}}
       const idx=balls.indexOf(b);if(idx>=0){balls[idx]=balls[balls.length-1];balls.pop()}}
-    // Remove extra bomb victims
-    if(extraPopped>0)setTimeout(()=>{balls=balls.filter(b=>!b.popping||survivors.includes(b));checkSpawn()},150);
-    if(starBonus>0){gm.score+=starBonus;document.getElementById('sv').textContent=gm.score;
-      const mid=pa.balls[~~(len/2)];if(mid)scorePop(mid.x,mid.y-30,'⭐+'+starBonus,'#ffd93d',28)}
+    // Remove extra gold explosion victims
+    if(extraPopped>0)setTimeout(()=>{balls=balls.filter(b=>!b.popping);checkSpawn()},150);
+    if(goldBonus>0){gm.score+=goldBonus;document.getElementById('sv').textContent=gm.score;
+      const mid=pa.balls[~~(len/2)];if(mid)scorePop(mid.x,mid.y-30,'✨+'+goldBonus,'#ffd93d',28)}
     gm.popped+=extraPopped;
     creditScore(pa);checkSpawn();
-    if(bombUsed)saveStats();
+    if(goldUsed)saveStats();
     setTimeout(()=>{if(gm.running&&!gm.paused)ensureValid()},600);
     popAnim=null}}
 
 // ======== SCORE / COMBO ========
 function creditScore(pa){
   const len=pa.len,now=performance.now();
-  const base=len*25,bonus=len>3?(len-3)*20:0,longB=len>=7?(len-6)*35:0;
-  const win=gm.mode==='endless'?ENDLESS_CFG.comboWin:DIFF[gm.diff].comboWin;
+  const base=len*20,chainBonus=len>=4?Math.floor(Math.pow(len-3,1.8)*15):0;
+  const win=DIFF[gm.diff].comboWin;
   if(now-gm.lastClear<win)gm.combo++;else gm.combo=1;
   gm.lastClear=now;if(gm.combo>gm.maxCombo)gm.maxCombo=gm.combo;
   const cMul=1+Math.min(gm.combo-1,9)*.3,fMul=gm.fever?2:1;
-  const earned=~~((base+bonus+longB)*cMul*fMul);
+  const earned=~~((base+chainBonus)*cMul*fMul);
   gm.score+=earned;gm.popped+=len;if(len>gm.maxChain)gm.maxChain=len;
   document.getElementById('sv').textContent=gm.score;updateComboUI();
   if(len>=5)sfxBig();
@@ -827,7 +806,7 @@ function creditScore(pa){
   else if(len>=5)toast('👍 '+len+'つなぎ! いいね!');
   if(gm.combo>=2){sfxCombo(gm.combo);if(gm.combo%2===0){stopBGM();startBGM()}}
   if(gm.combo>=6&&!gm.fever)activateFever();
-  if(gm.combo>=2)emitSpeedLines(gm.combo*2,gm.combo*.25);
+  if(gm.combo>=2&&len>=5)emitSpeedLines(gm.combo*2,gm.combo*.25);
   const mid=pa.balls[~~(len/2)];
   const popSz=Math.min(20+len*2+(gm.combo-1)*4,42);
   scorePop(mid.x,mid.y,'+'+earned,cMul>=2.5?'#ffd93d':cMul>=2?'#7dd889':'#fff',popSz);
@@ -932,16 +911,19 @@ function skillRainbowTime(ms){
 
 // ======== FEVER ========
 function activateFever(){
-  gm.fever=true;gm.feverCount++;gm._feverStartT=performance.now();
+  gm.feverCount++;gm._feverStartT=performance.now();
   stats.feverCount++;
   clearTimeout(gm._feverTO);
-  document.getElementById('ff').classList.add('on');
-  const fl=document.getElementById('fl');fl.style.opacity='1';fl.style.transform='translate(-50%,-50%) scale(1)';fl.style.transition='transform .3s,opacity .3s';
-  clearTimeout(gm._feverLabelTO);gm._feverLabelTO=setTimeout(()=>{fl.style.opacity='0';fl.style.transform='translate(-50%,-50%) scale(.5)'},1500);
-  sfxFever();toast('🔥 FEVER! スコア2ばい! 🔥');stopBGM();startBGM();
-  emitSpeedLines(20,1.5);triggerShake(20);triggerFlash(.4);
-  const dur=gm.mode==='endless'?ENDLESS_CFG.feverDur:DIFF[gm.diff].feverDur;
-  gm._feverTO=setTimeout(()=>{if(!gm.running)return;endFever()},dur)}
+  // Freeze frame moment before fever starts
+  setTimeout(()=>{
+    gm.fever=true;
+    document.getElementById('ff').classList.add('on');
+    const fl=document.getElementById('fl');fl.style.opacity='1';fl.style.transform='translate(-50%,-50%) scale(1)';fl.style.transition='transform .3s,opacity .3s';
+    clearTimeout(gm._feverLabelTO);gm._feverLabelTO=setTimeout(()=>{fl.style.opacity='0';fl.style.transform='translate(-50%,-50%) scale(.5)'},1500);
+    sfxFever();toast('🔥 FEVER! スコア2ばい! 🔥');stopBGM();startBGM();
+    emitSpeedLines(20,1.5);triggerShake(20);triggerFlash(.4);
+    const dur=DIFF[gm.diff].feverDur;
+    gm._feverTO=setTimeout(()=>{if(!gm.running)return;endFever()},dur)},500)}
 function endFever(){
   gm.fever=false;document.getElementById('ff').classList.remove('on');
   clearTimeout(gm._feverLabelTO);
@@ -963,7 +945,7 @@ function drawFlash(){if(flashAlpha>.005){cx.save();cx.setTransform(dpr,0,0,dpr,0
     cx.globalAlpha=1;cx.restore();flashAlpha*=.88}}
 function tickComboBar(){
   if(gm.combo<=0){document.getElementById('cb').style.width='0%';return}
-  const win=gm.mode==='endless'?ENDLESS_CFG.comboWin:DIFF[gm.diff].comboWin;
+  const win=DIFF[gm.diff].comboWin;
   const elapsed=performance.now()-gm.lastClear;
   const pct=Math.max(0,1-elapsed/win);
   const cb=document.getElementById('cb');cb.style.width=(pct*100)+'%';
@@ -1001,54 +983,52 @@ function drawBalls(now){
     // Face
     cx.save();cx.beginPath();cx.arc(px,dy,br+1,0,Math.PI*2);cx.clip();
     drawAnimal(ball.type,px,dy,br,now);cx.restore();
-    // Selection glow
-    if(ball.selected){cx.save();cx.shadowBlur=16;cx.shadowColor=tp.color;
-      cx.strokeStyle='#fff';cx.lineWidth=2.5;cx.beginPath();cx.arc(px,dy,br+3,0,Math.PI*2);cx.stroke();cx.restore()}
+    // Selection glow (colored ring instead of shadowBlur for performance)
+    if(ball.selected){cx.save();cx.globalAlpha=.35;cx.strokeStyle=tp.color;cx.lineWidth=8;
+      cx.beginPath();cx.arc(px,dy,br+5,0,Math.PI*2);cx.stroke();
+      cx.globalAlpha=ball.alpha;cx.strokeStyle='#fff';cx.lineWidth=2.5;
+      cx.beginPath();cx.arc(px,dy,br+3,0,Math.PI*2);cx.stroke();cx.restore()}
     // Highlight connectable balls during drag
     if(dragging&&!ball.selected&&!ball.popping&&(gm._rainbowTime||ball.type===chainType||ball.special==='rainbow'||chainType===-1)){
       const lastC=chain[chain.length-1];
       const canConnect=lastC&&Math.hypot(lastC.x-ball.x,lastC.y-ball.y)<ballR*ADJ_F*(gm._reachMul||1);
-      if(canConnect){cx.save();cx.globalAlpha=.3+Math.sin(now*.008)*.15;cx.strokeStyle='#fff';
-        cx.lineWidth=2;cx.shadowBlur=10;cx.shadowColor=tp.color;
+      if(canConnect){cx.save();cx.globalAlpha=.2;cx.strokeStyle=tp.color;cx.lineWidth=6;
+        cx.beginPath();cx.arc(px,dy,br+5,0,Math.PI*2);cx.stroke();
+        cx.globalAlpha=.3+Math.sin(now*.008)*.15;cx.strokeStyle='#fff';cx.lineWidth=2;
         cx.beginPath();cx.arc(px,dy,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
       else{cx.save();cx.globalAlpha=.06+Math.sin(now*.005)*.04;cx.fillStyle=tp.color;
         cx.beginPath();cx.arc(px,dy,br+5,0,Math.PI*2);cx.fill();cx.restore()}}
-    // Hint
+    // Hint (colored ring instead of shadowBlur)
     if(hintGroup&&hintGroup.some(h=>h.id===ball.id)){
-      cx.save();cx.globalAlpha=.25+Math.sin(now*.006)*.2;cx.shadowBlur=12;cx.shadowColor='#ffd93d';
-      cx.strokeStyle='#ffd93d';cx.lineWidth=2;cx.beginPath();cx.arc(px,dy,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
+      cx.save();cx.globalAlpha=.15;cx.strokeStyle='#ffd93d';cx.lineWidth=6;
+      cx.beginPath();cx.arc(px,dy,br+6,0,Math.PI*2);cx.stroke();
+      cx.globalAlpha=.25+Math.sin(now*.006)*.2;cx.strokeStyle='#ffd93d';cx.lineWidth=2;
+      cx.beginPath();cx.arc(px,dy,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
     // Special ball overlay
     if(ball.special&&!ball.popping){
       cx.save();
-      if(ball.special==='bomb'){
-        cx.font=(br*1.1)+'px sans-serif';cx.textAlign='center';cx.textBaseline='middle';
-        cx.globalAlpha=.85;cx.fillText('💣',px,dy)}
+      if(ball.special==='gold'){
+        cx.globalAlpha=.5+Math.sin(now*.005)*.3;cx.fillStyle='#ffd93d';
+        for(let i=0;i<3;i++){const sa=now*.004+i*2.1,sd=br*.7;
+          cx.beginPath();cx.arc(px+Math.cos(sa)*sd,dy+Math.sin(sa)*sd,2,0,Math.PI*2);cx.fill()}
+        cx.font=(br*.9)+'px sans-serif';cx.textAlign='center';cx.textBaseline='middle';
+        cx.globalAlpha=.8;cx.fillText('✨',px,dy)}
       else if(ball.special==='rainbow'){
         const ra=now*.003;cx.globalAlpha=.6;cx.lineWidth=2.5;
         for(let i=0;i<6;i++){cx.strokeStyle=`hsl(${(ra*60+i*60)%360},85%,65%)`;
           cx.beginPath();cx.arc(px,dy,br+3,ra+i*Math.PI/3,ra+i*Math.PI/3+.8);cx.stroke()}}
-      else if(ball.special==='star'){
-        cx.globalAlpha=.5+Math.sin(now*.005)*.3;cx.fillStyle='#ffd93d';
-        for(let i=0;i<3;i++){const sa=now*.004+i*2.1,sd=br*.7;
-          cx.beginPath();cx.arc(px+Math.cos(sa)*sd,dy+Math.sin(sa)*sd,2,0,Math.PI*2);cx.fill()}}
-      else if(ball.special==='ice'){
-        cx.globalAlpha=ball.iceState==='frozen'?.45:.2;
-        cx.fillStyle=ball.iceState==='frozen'?'rgba(150,210,255,.6)':'rgba(200,230,255,.3)';
-        cx.beginPath();cx.arc(px,dy,br+1,0,Math.PI*2);cx.fill();
-        if(ball.iceState==='frozen'){cx.strokeStyle='rgba(200,230,255,.5)';cx.lineWidth=1.5;
-          cx.beginPath();cx.moveTo(px-br*.5,dy-br*.3);cx.lineTo(px+br*.3,dy+br*.5);cx.stroke();
-          cx.beginPath();cx.moveTo(px+br*.4,dy-br*.4);cx.lineTo(px-br*.2,dy+br*.4);cx.stroke()}}
       cx.restore()}
     // Rainbow time visual - all balls get rainbow ring
     if(gm._rainbowTime&&!ball.popping){
       cx.save();cx.globalAlpha=.4+Math.sin(now*.006+ball.phase)*.2;cx.lineWidth=2.5;
       cx.strokeStyle=`hsl(${(now*.08+ball.phase*60)%360},80%,65%)`;
       cx.beginPath();cx.arc(px,dy,br+4,0,Math.PI*2);cx.stroke();cx.restore()}
-    // Recently transformed glow (guides player to chain)
+    // Recently transformed glow (colored ring instead of shadowBlur)
     if(ball._transformT&&!ball.popping){const age=now-ball._transformT;
       if(age<3000){const glow=1-age/3000;
-        cx.save();cx.globalAlpha=glow*(.35+Math.sin(now*.008)*.15);
-        cx.shadowBlur=16;cx.shadowColor=tp.color;cx.strokeStyle='#ffd93d';cx.lineWidth=2.5;
+        cx.save();cx.globalAlpha=glow*.2;cx.strokeStyle=tp.color;cx.lineWidth=7;
+        cx.beginPath();cx.arc(px,dy,br+6,0,Math.PI*2);cx.stroke();
+        cx.globalAlpha=glow*(.35+Math.sin(now*.008)*.15);cx.strokeStyle='#ffd93d';cx.lineWidth=2.5;
         cx.beginPath();cx.arc(px,dy,br+5,0,Math.PI*2);cx.stroke();cx.restore()}}
     // Fall stretch effect
     if(Math.abs(ball.vy)>3&&!ball.popping){
@@ -1156,28 +1136,22 @@ function pauseGame(){
   if(!gm.running||gm.paused||gm._starting)return;
   gm.paused=true;gm._pauseT=performance.now();
   clearInterval(gm._ti);gm._ti=null;stopBGM();
-  if(gm.fever&&gm._feverTO){const fd=gm.mode==='endless'?ENDLESS_CFG.feverDur:DIFF[gm.diff].feverDur;gm._feverRemaining=Math.max(0,fd-(performance.now()-gm._feverStartT));
+  if(gm.fever&&gm._feverTO){const fd=DIFF[gm.diff].feverDur;gm._feverRemaining=Math.max(0,fd-(performance.now()-gm._feverStartT));
     clearTimeout(gm._feverTO);gm._feverTO=null}
   clearTimeout(gm._feverLabelTO);
-  if(gm.frozen&&gm._freezeTO){gm._freezeRemaining=Math.max(0,gm._freezeDur-(performance.now()-gm._freezeStartT));
-    clearTimeout(gm._freezeTO);gm._freezeTO=null}
-  if(gm.mode==='endless')gm._pausedWaveTimer=gm._waveTimer;
   if(dragging)endChain();
   document.getElementById('ps').classList.remove('hide');document.getElementById('pauseBtn').textContent='▶'}
 function resumeGame(){
   if(!gm.paused)return;gm.paused=false;
   const dur=performance.now()-gm._pauseT;
   if(gm.lastClear>0)gm.lastClear+=dur;
-  if(gm.mode!=='endless')gm._ti=setInterval(timerTick,1000);startBGM();
+  gm._ti=setInterval(timerTick,1000);startBGM();
   if(gm.fever&&gm._feverRemaining>0){gm._feverStartT=performance.now();
     gm._feverTO=setTimeout(()=>{if(gm.running)endFever()},gm._feverRemaining)}
-  if(gm.frozen&&gm._freezeRemaining>0){gm._freezeStartT=performance.now();
-    gm._freezeTO=setTimeout(()=>{gm.frozen=false;document.getElementById('tv').style.color=''},gm._freezeRemaining)}
-  if(gm.mode==='endless'&&gm._pausedWaveTimer)gm._waveTimer=gm._pausedWaveTimer;
   document.getElementById('ps').classList.add('hide');document.getElementById('pauseBtn').textContent='⏸'}
 function quitGame(){
-  gm.paused=false;gm.running=false;clearInterval(gm._ti);clearTimeout(gm._feverTO);clearTimeout(gm._feverLabelTO);clearTimeout(gm._freezeTO);stopBGM();
-  gm.fever=false;gm.frozen=false;gm._rainbowTime=false;gm._slowMo=1;gm._reachMul=1;
+  gm.paused=false;gm.running=false;clearInterval(gm._ti);clearTimeout(gm._feverTO);clearTimeout(gm._feverLabelTO);stopBGM();
+  gm.fever=false;gm._rainbowTime=false;gm._slowMo=1;gm._reachMul=1;
   gm._rainbowRemain=0;gm._slowRemain=0;gm._skillActive=false;
   popAnim=null;chain=[];dragging=false;
   document.getElementById('ff').classList.remove('on');document.getElementById('cb').style.width='0%';
@@ -1185,38 +1159,33 @@ function quitGame(){
   document.getElementById('hud').style.display='none';document.getElementById('cw').style.display='none';
   document.getElementById('skillBtn').style.display='none';document.getElementById('skillGauge').style.display='none';
   document.getElementById('tl').textContent='TIME';document.getElementById('tv').style.color='';
+  document.getElementById('urgency').style.opacity='0';document.getElementById('urgency').style.animation='none';
   document.getElementById('ss').classList.remove('hide')}
 function timerTick(){
-  if(gm.mode==='endless')return;
-  if(!gm.running||gm.frozen)return;
+  if(!gm.running)return;
   if(gm._slowMo<1){gm._slowAccum+=gm._slowMo;if(gm._slowAccum<1)return;gm._slowAccum-=1}
   gm.timeLeft--;
   const tv=document.getElementById('tv');tv.textContent=Math.max(0,gm.timeLeft);
-  if(gm.timeLeft<=10&&gm.timeLeft>5)tv.style.color='#ffb756';
-  if(gm.timeLeft<=5&&gm.timeLeft>0){tv.style.color='#ff6b6b';tv.style.animation='pulse .5s infinite';sfxCD(1);triggerFlash(.08)}
+  const urg=document.getElementById('urgency');
+  if(gm.timeLeft<=10&&gm.timeLeft>5){tv.style.color='#ffb756';urg.style.opacity='0'}
+  if(gm.timeLeft<=5&&gm.timeLeft>0){tv.style.color='#ff6b6b';tv.style.animation='pulse .5s infinite';sfxCD(1);triggerFlash(.08);
+    urg.style.opacity='1';urg.style.animation='urgPulse .8s ease-in-out infinite'}
+  if(gm.timeLeft>5){urg.style.opacity='0';urg.style.animation='none'}
+  if(gm.timeLeft===1){triggerFlash(.15)}
   if(gm.timeLeft<=3&&gm.timeLeft>0){const cd=document.getElementById('cd');cd.textContent=gm.timeLeft;
     cd.style.color='#ff6b6b';cd.style.animation='none';void cd.offsetHeight;cd.style.animation='cdp .7s ease forwards'}
   if(gm.timeLeft===10){stopBGM();startBGM(170);toast('⏰ のこり10びょう!')}
-  if(gm.timeLeft<=0)endGame()}
+  if(gm.timeLeft<=0){urg.style.opacity='0';urg.style.animation='none';endGame()}}
 
 // ======== ACHIEVEMENTS ========
 function checkAchievements(){
   const checks=[
     ['firstPop',()=>stats.totalPops>0],
-    ['firstFever',()=>stats.feverCount>0],
-    ['chain5',()=>stats.bestChain>=5],
-    ['chain10',()=>stats.bestChain>=10],
-    ['chain15',()=>stats.bestChain>=15],
-    ['combo5',()=>stats.bestCombo>=5],
-    ['combo10',()=>stats.bestCombo>=10],
+    ['chain8',()=>stats.bestChain>=8],
     ['score1k',()=>stats.bestScore>=1000],
-    ['score3k',()=>stats.bestScore>=3000],
-    ['score5k',()=>stats.bestScore>=5000],
+    ['firstFever',()=>stats.feverCount>0],
     ['play10',()=>stats.totalPlays>=10],
-    ['play50',()=>stats.totalPlays>=50],
-    ['allAnimal',()=>stats.usedAnimals&&stats.usedAnimals.length>=6],
-    ['bombMaster',()=>stats.bombsUsed>=10],
-    ['endless1k',()=>gm.mode==='endless'&&gm.score>=1000]];
+    ['score3k',()=>stats.bestScore>=3000]];
   for(const[id,fn]of checks){
     if(!unlockedAch.includes(id)&&fn()){unlockedAch.push(id);saveAch();
       const a=ACHIEVEMENTS.find(x=>x.id===id);if(a)achToast(a)}}}
@@ -1234,61 +1203,6 @@ function showAchScreen(){
     d.innerHTML='<div class="ach-emoji">'+a.emoji+'</div><div class="ach-name">'+a.name+'</div><div class="ach-desc">'+a.desc+'</div>';
     grid.appendChild(d)});
   document.getElementById('achScr').classList.remove('hide')}
-function showStatsScreen(){
-  const grid=document.getElementById('statGrid');grid.innerHTML='';
-  const items=[
-    [stats.totalPlays,'プレイかいすう'],[stats.totalPops,'ポップすう'],
-    [stats.bestScore,'ベストスコア'],[stats.bestChain,'さいちょうチェイン'],
-    [stats.bestCombo,'さいこうコンボ'],[stats.feverCount,'フィーバーかいすう'],
-    [Math.floor((stats.totalPlayTime||0)/1000)+'s','プレイじかん'],
-    [(stats.usedAnimals||[]).length+'/6','つかったどうぶつ']];
-  items.forEach(([v,l])=>{const d=document.createElement('div');
-    d.innerHTML='<div class="stat-val">'+v+'</div><div class="stat-label">'+l+'</div>';
-    grid.appendChild(d)});
-  document.getElementById('statsScr').classList.remove('hide')}
-
-// ======== ENDLESS MODE ========
-function getEndlessTypes(){
-  const s=gm.score;
-  if(s>=1500)return 6;if(s>=800)return 5;if(s>=300)return 4;return 3}
-function tickEndless(dt){
-  if(!gm.running||gm.paused||gm.mode!=='endless')return;
-  gm._waveTimer-=dt;
-  if(gm._waveTimer<=0){spawnWave();gm._endlessWave++;
-    document.getElementById('tv').textContent=gm._endlessWave;
-    const interval=Math.max(ENDLESS_CFG.waveMin,ENDLESS_CFG.waveStart-gm._endlessWave*ENDLESS_CFG.waveAccel);
-    gm._waveTimer=interval;gm._waveInterval=interval}
-  checkDangerLine(dt)}
-function spawnWave(){
-  const tc=getEndlessTypes();
-  const count=ENDLESS_CFG.baseBatch+Math.min(Math.floor(gm._endlessWave/3),10);
-  for(let i=0;i<count;i++){
-    const x=areaL+ballR+Math.random()*(areaR-areaL-ballR*2);
-    const sp=rollSpecial();
-    const b=makeBall(x,areaT-ballR*(2+Math.random()*4),~~(Math.random()*tc),sp);
-    b.vy=3+Math.random()*4;b.vx=(Math.random()-.5)*2;balls.push(b)}
-  for(const b of balls){b.sleep=0;b.px=b.x;b.py=b.y}
-  if(gm._endlessWave>0&&gm._endlessWave%5===0)toast('🌊 ウェーブ '+gm._endlessWave+'!')}
-function checkDangerLine(dt){
-  const dangerY=areaT+ballR*3;
-  const alive=balls.filter(b=>!b.popping);
-  const inDanger=alive.some(b=>b.y-b.r<dangerY&&b.sleep>8);
-  if(inDanger){gm._dangerTimer+=dt;gm._dangerActive=true;
-    if(gm._dangerTimer>=ENDLESS_CFG.dangerTime)endGame()}
-  else{gm._dangerTimer=Math.max(0,gm._dangerTimer-dt*2);
-    if(gm._dangerTimer<=0)gm._dangerActive=false}}
-function drawDangerLine(now){
-  if(gm.mode!=='endless'||!gm.running)return;
-  const dangerY=areaT+ballR*3;
-  const pct=gm._dangerTimer/ENDLESS_CFG.dangerTime;
-  const a=gm._dangerActive?.3+Math.sin(now*.008)*.2+pct*.3:.08;
-  cx.save();cx.strokeStyle='rgba(255,60,60,'+a+')';cx.lineWidth=2;
-  cx.setLineDash([8,5]);cx.lineDashOffset=-now*.02;
-  cx.beginPath();cx.moveTo(areaL,dangerY);cx.lineTo(areaR,dangerY);cx.stroke();
-  cx.setLineDash([]);
-  if(pct>.3){cx.fillStyle='rgba(255,60,60,'+(a*.8)+')';cx.font='bold 12px sans-serif';
-    cx.textAlign='center';cx.fillText('⚠ DANGER',W/2,dangerY-6)}
-  cx.restore()}
 
 // ======== DAILY CHALLENGE ========
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;
@@ -1319,15 +1233,12 @@ function countdown(){return new Promise(res=>{let n=3;const el=document.getEleme
 async function startGame(){
   if(gm._starting)return;gm._starting=true;initA();
   let d;
-  if(gm.mode==='endless'){d={time:0,types:3,balls:ENDLESS_CFG.initBalls,hint:ENDLESS_CFG.hint,
-    comboWin:ENDLESS_CFG.comboWin,feverDur:ENDLESS_CFG.feverDur}}
-  else if(gm.mode==='daily'){d=DIFF.normal;dailyRng=mulberry32(getDailySeed())}
+  if(gm.mode==='daily'){d=DIFF.normal;dailyRng=mulberry32(getDailySeed())}
   else{d=DIFF[gm.diff]}
-  clearTimeout(gm._feverTO);clearTimeout(gm._feverLabelTO);clearInterval(gm._ti);clearInterval(gm._fireworkIV);clearTimeout(gm._freezeTO);stopBGM();
+  clearTimeout(gm._feverTO);clearTimeout(gm._feverLabelTO);clearInterval(gm._ti);clearInterval(gm._fireworkIV);stopBGM();
   Object.assign(gm,{score:0,combo:0,maxCombo:0,popped:0,maxChain:0,
-    timeLeft:d.time,totalTime:d.time,running:false,paused:false,fever:false,frozen:false,
-    feverCount:0,lastClear:0,skillCharge:0,_feverRemaining:0,_freezeRemaining:0,
-    _endlessWave:0,_waveTimer:3000,_waveInterval:ENDLESS_CFG.waveStart,_dangerTimer:0,_dangerActive:false,
+    timeLeft:d.time,totalTime:d.time,running:false,paused:false,fever:false,
+    feverCount:0,lastClear:0,skillCharge:0,_feverRemaining:0,
     _rainbowTime:false,_rainbowRemain:0,_slowMo:1,_slowRemain:0,_slowAccum:0,_reachMul:1,_skillActive:false,
     _gameStartT:performance.now()});
   displayScore=0;missionIdx=0;popAnim=null;chain=[];dragging=false;touchPos=null;
@@ -1335,11 +1246,11 @@ async function startGame(){
   rings=[];speedLines=[];shakeX=shakeY=shakeMag=0;flashAlpha=0;
   toasts.forEach(t=>t.remove());toasts=[];scorePops.forEach(p=>p.remove());scorePops=[];
   document.getElementById('sv').textContent='0';
-  if(gm.mode==='endless'){document.getElementById('tv').textContent='0';document.getElementById('tl').textContent='WAVE'}
-  else{document.getElementById('tv').textContent=d.time;document.getElementById('tl').textContent='TIME'}
+  document.getElementById('tv').textContent=d.time;document.getElementById('tl').textContent='TIME';
   document.getElementById('tv').style.color='';document.getElementById('tv').style.animation='none';
   document.getElementById('cb').style.width='0%';document.getElementById('ct').style.opacity='0';
   document.getElementById('ff').classList.remove('on');
+  document.getElementById('urgency').style.opacity='0';document.getElementById('urgency').style.animation='none';
   const fl=document.getElementById('fl');fl.style.opacity='0';fl.style.transform='translate(-50%,-50%) scale(0)';
   document.getElementById('ss').classList.add('hide');document.getElementById('es').classList.add('hide');
   document.getElementById('hud').style.display='flex';document.getElementById('cw').style.display='';
@@ -1353,15 +1264,15 @@ async function startGame(){
   stats.totalPlays++;
   if(!stats.usedAnimals.includes(gm.myAnimal))stats.usedAnimals.push(gm.myAnimal);
   saveStats();
-  playCount++;try{localStorage.setItem('atPC',playCount.toString())}catch(e){}
-  if(gm.mode!=='endless')gm._ti=setInterval(timerTick,1000);
+  gm._ti=setInterval(timerTick,1000);
   if(!localStorage.getItem('atTutDone')){
     setTimeout(()=>{if(gm.running&&gm.popped===0)toast('👆 おなじどうぶつをなぞってね!');
       setTimeout(()=>{if(gm.running&&gm.popped===0)toast('👆 3びきいじょう つなげてね!');
         else try{localStorage.setItem('atTutDone','1')}catch(e){}},5000)},2000)}}
 function endGame(){
-  gm.running=false;clearInterval(gm._ti);clearTimeout(gm._feverTO);clearTimeout(gm._feverLabelTO);clearTimeout(gm._freezeTO);stopBGM();
-  gm.fever=false;gm.frozen=false;popAnim=null;chain=[];dragging=false;
+  gm.running=false;clearInterval(gm._ti);clearTimeout(gm._feverTO);clearTimeout(gm._feverLabelTO);stopBGM();
+  gm.fever=false;popAnim=null;chain=[];dragging=false;
+  document.getElementById('urgency').style.opacity='0';document.getElementById('urgency').style.animation='none';
   document.getElementById('ff').classList.remove('on');document.getElementById('cb').style.width='0%';
   document.getElementById('ct').style.opacity='0';sfxEnd();
   // Stats
@@ -1377,8 +1288,7 @@ function endGame(){
         shapes:['circle','star','heart','diamond']});if(++n>(s>=1000?20:10))clearInterval(gm._fireworkIV)},s>=1000?180:250)}
   // Determine best key and thresholds
   let bestKey,th2;
-  if(gm.mode==='endless'){bestKey='endless';th2={s1:500,s2:1500,s3:3500}}
-  else if(gm.mode==='daily'){bestKey='daily_'+getTodayKey();th2={s1:280,s2:900,s3:2400};
+  if(gm.mode==='daily'){bestKey='daily_'+getTodayKey();th2={s1:280,s2:900,s3:2400};
     const tk=getTodayKey();if(!dailyBest[tk]||s>dailyBest[tk]){dailyBest[tk]=s;
       try{localStorage.setItem('atDaily',JSON.stringify(dailyBest))}catch(e){}}}
   else{bestKey=gm.diff;
@@ -1407,9 +1317,7 @@ function endGame(){
     document.getElementById('eC').textContent=gm.maxCombo;
     document.getElementById('ePL').textContent='ポップ';
     document.getElementById('eCL').textContent='さいこうコンボ';
-    if(gm.mode==='endless'){document.getElementById('eL').textContent=gm._endlessWave;
-      document.getElementById('eLL').textContent='ウェーブ'}
-    else{document.getElementById('eL').textContent=gm.maxChain;document.getElementById('eLL').textContent='ながさMAX'}
+    document.getElementById('eL').textContent=gm.maxChain;document.getElementById('eLL').textContent='ながさMAX';
     document.getElementById('eB').textContent=gm.best[bestKey]||s;
     document.getElementById('eBL').textContent='ベスト';
     const nextStar=starCount<3?(starCount===0?th2.s1:starCount===1?th2.s2:th2.s3):null;
@@ -1418,7 +1326,7 @@ function endGame(){
     else if(starCount===3){nextEl.textContent='かんぺき! すべての ⭐ をゲット!';nextEl.style.display=''}
     else nextEl.style.display='none';
     document.getElementById('eN').style.display=isNew&&s>0?'':'none';
-    document.getElementById('ePC').textContent=playCount+'かいめのプレイ';
+    document.getElementById('ePC').textContent=stats.totalPlays+'かいめのプレイ';
     if(isNew&&s>0){let fw=0;const fwI=setInterval(()=>{
       for(let j=0;j<3;j++)emit(Math.random()*W,Math.random()*H*.5,30,{speed:12,size:8,
         colors:['#ffd93d','#ff7eb3','#7dd889','#5dd8cf','#b49cfc','#fff'],
@@ -1440,10 +1348,8 @@ function loop(now){
     physicsTick();
     if(popAnim)tickPop(dt);
     tickSpawn();
-    balls.forEach(b=>{if(!b.popping&&b.scale>1.01)b.scale+=(1-b.scale)*.15});
-    if(gm.mode==='endless'&&gm.running)tickEndless(dt)}
+    balls.forEach(b=>{if(!b.popping&&b.scale>1.01)b.scale+=(1-b.scale)*.15})}
   if(gm._slowMo<1){cx.fillStyle='rgba(80,140,255,.07)';cx.fillRect(0,0,W,H)}
-  drawDangerLine(now);
   drawBalls(now);drawChainLine(now);
   drawRipples();tickP();drawP();drawSpeedLines();
   cx.restore();
@@ -1451,9 +1357,9 @@ function loop(now){
   if(gm.running&&!gm.paused){
     tickComboBar();tickDisplayScore();
     if(!dragging&&!popAnim&&settled){hintT+=dt;
-      const hintDelay=gm.mode==='endless'?ENDLESS_CFG.hint:DIFF[gm.diff].hint;
+      const hintDelay=DIFF[gm.diff].hint;
       if(hintT>hintDelay&&!hintGroup){hintGroup=findHint()}}
-    if(gm.combo>0){const comboWin=gm.mode==='endless'?ENDLESS_CFG.comboWin:DIFF[gm.diff].comboWin;
+    if(gm.combo>0){const comboWin=DIFF[gm.diff].comboWin;
       if(performance.now()-gm.lastClear>comboWin){gm.combo=0;updateComboUI()}}
     if(gm.fever&&Math.random()<.3)emitSpeedLines(2,1);
     else if(gm.combo>=3&&Math.random()<.15)emitSpeedLines(1,gm.combo*.15);
@@ -1472,7 +1378,7 @@ document.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>
 document.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-a]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
   gm.myAnimal=parseInt(b.dataset.a);
-  const sk=SKILLS[gm.myAnimal];document.getElementById('skn').textContent=sk.name+' - '+sk.desc}));
+  const sk=SKILLS[gm.myAnimal];toast(TYPES[gm.myAnimal].emoji+' '+sk.name)}));
 document.getElementById('bgo').addEventListener('click',startGame);
 document.getElementById('bre').addEventListener('click',()=>{document.getElementById('es').classList.add('hide');startGame()});
 document.getElementById('bback').addEventListener('click',()=>{document.getElementById('es').classList.add('hide');
@@ -1490,19 +1396,24 @@ document.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>
   updateDailyInfo()}));
 // Achievement/stats buttons
 document.getElementById('achBtn').addEventListener('click',e=>{e.stopPropagation();showAchScreen()});
-document.getElementById('statsBtn').addEventListener('click',e=>{e.stopPropagation();showStatsScreen()});
 document.getElementById('achClose').addEventListener('click',()=>document.getElementById('achScr').classList.add('hide'));
-document.getElementById('statsClose').addEventListener('click',()=>document.getElementById('statsScr').classList.add('hide'));
 // Title/End screen tap sparkle
 ['ss','es'].forEach(id=>document.getElementById(id).addEventListener('click',e=>{
   const v=toVirt(e.clientX,e.clientY);
   emit(v.x,v.y,8,{speed:4,size:4,
     colors:['#ff7eb3','#ffe066','#7dd889','#5dd8cf','#b49cfc'],gravity:.1,shapes:['star','heart','circle']});
   nt(400+Math.random()*400,'triangle',.08,.06)}));
-['achScr','statsScr'].forEach(id=>document.getElementById(id).addEventListener('click',e=>{
+document.getElementById('achScr').addEventListener('click',e=>{
   if(e.target.tagName==='BUTTON')return;
   const v=toVirt(e.clientX,e.clientY);
-  emit(v.x,v.y,5,{speed:3,size:3,colors:['#ffd93d','#ff7eb3','#7dd889'],gravity:.1,shapes:['star','circle']})}));
+  emit(v.x,v.y,5,{speed:3,size:3,colors:['#ffd93d','#ff7eb3','#7dd889'],gravity:.1,shapes:['star','circle']})});
+// Share button handler
+document.getElementById('shareBtn').addEventListener('click',async()=>{
+  const text='🐱 アニマルつなぎ! で '+gm.score+'てん とったよ! 🎉\n#アニマルつなぎ';
+  if(navigator.share){
+    try{await navigator.share({title:'アニマルつなぎ!',text})}catch(e){}}
+  else{try{await navigator.clipboard.writeText(text);toast('📋 コピーしたよ!')}
+    catch(e){toast('シェアできませんでした')}}});
 </script>
 </body>
 </html>
