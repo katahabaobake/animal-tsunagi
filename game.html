@@ -127,6 +127,16 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
 .daily-info b{color:#ffd93d}
 .bottom-btns{display:flex;gap:8px;margin-top:8px}
 .bottom-btns .btn{padding:10px 20px;font-size:14px;min-height:42px}
+.hs-wrap{width:100%;max-width:300px;margin-bottom:12px}
+.hs-title{font-size:14px;font-weight:800;color:rgba(255,255,255,.7);text-align:center;margin-bottom:6px}
+.hs-row{display:flex;align-items:center;gap:8px;padding:4px 10px;border-radius:8px;font-size:13px;color:rgba(255,255,255,.7)}
+.hs-row:nth-child(2){background:rgba(255,217,61,.12);color:#ffd93d;font-weight:800}
+.hs-row:nth-child(3){background:rgba(255,255,255,.05)}
+.hs-rank{min-width:22px;font-weight:800;text-align:center}
+.hs-animal{min-width:20px;text-align:center}
+.hs-score{flex:1;text-align:right;font-weight:700;font-size:14px}
+.hs-date{font-size:10px;color:rgba(255,255,255,.35);min-width:42px;text-align:right}
+.hs-new{color:#ffd93d;font-size:11px;font-weight:800;animation:pulse .8s ease-in-out infinite}
 .modal-scr{position:absolute;inset:0;z-index:55;background:rgba(5,0,20,.95);backdrop-filter:blur(16px);
   display:flex;flex-direction:column;align-items:center;padding:20px;padding-top:max(20px,env(safe-area-inset-top));overflow-y:auto}
 .modal-scr.hide{display:none}
@@ -185,6 +195,7 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
     <button class="db" data-d="normal">ふつう</button>
     <button class="db" data-d="hard">むずい!</button>
   </div>
+  <div class="hs-wrap" id="hsWrap"></div>
   <button class="btn bg" id="bgo">あそぶ!</button>
   <div class="bottom-btns">
     <button class="btn bsm" id="achBtn">🏅 じっせき</button>
@@ -203,6 +214,7 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
   </div>
   <div id="eNext" style="font-size:13px;color:rgba(255,255,255,.45);margin-bottom:4px;min-height:18px"></div>
   <div class="en" id="eN" style="display:none">⭐ ベストスコア こうしん! ⭐</div>
+  <div id="eHsRank" style="font-size:14px;font-weight:800;color:#ffd93d;margin-bottom:4px;display:none"></div>
   <div id="ePC" style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px"></div>
   <button class="btn br" id="bre">もういっかい!</button>
   <button class="btn bsm" id="shareBtn">📤 シェア</button>
@@ -303,6 +315,29 @@ let dailyBest=(()=>{try{const d=JSON.parse(localStorage.getItem('atDaily')||'{}'
   if(cleaned)try{localStorage.setItem('atDaily',JSON.stringify(d))}catch(e){}
   return d}catch(e){return{}}})();
 let dailyRng=null;
+
+// ======== HIGH SCORES ========
+const HS_MAX=5;
+let highScores=(()=>{try{return JSON.parse(localStorage.getItem('atHS')||'[]')}catch(e){return[]}})();
+function saveHS(){try{localStorage.setItem('atHS',JSON.stringify(highScores))}catch(e){}}
+function addHS(score,animal,mode,diff){
+  const d=new Date(),date=String(d.getMonth()+1)+'/'+String(d.getDate());
+  const entry={score,animal,mode,diff,date};
+  highScores.push(entry);highScores.sort((a,b)=>b.score-a.score);
+  if(highScores.length>HS_MAX)highScores.length=HS_MAX;
+  saveHS();return highScores.indexOf(entry)}
+function renderHS(container,highlightIdx){
+  if(!highScores.length){container.innerHTML='';return}
+  let h='<div class="hs-title">🏆 ハイスコア</div>';
+  highScores.forEach((e,i)=>{
+    const medal=i===0?'👑':i===1?'🥈':i===2?'🥉':(i+1);
+    const isNew=i===highlightIdx;
+    h+='<div class="hs-row'+(isNew?' hs-new':'')+'"><span class="hs-rank">'+medal+'</span>'
+      +'<span class="hs-animal">'+TYPES[e.animal].emoji+'</span>'
+      +'<span class="hs-score">'+e.score+'てん</span>'
+      +'<span class="hs-date">'+e.date+'</span></div>'});
+  container.innerHTML=h}
+function refreshStartHS(){renderHS(document.getElementById('hsWrap'),-1)}
 
 // ======== RESIZE ========
 function resize(){
@@ -1160,7 +1195,7 @@ function quitGame(){
   document.getElementById('skillBtn').style.display='none';document.getElementById('skillGauge').style.display='none';
   document.getElementById('tl').textContent='TIME';document.getElementById('tv').style.color='';
   document.getElementById('urgency').style.opacity='0';document.getElementById('urgency').style.animation='none';
-  document.getElementById('ss').classList.remove('hide')}
+  document.getElementById('ss').classList.remove('hide');refreshStartHS()}
 function timerTick(){
   if(!gm.running)return;
   if(gm._slowMo<1){gm._slowAccum+=gm._slowMo;if(gm._slowAccum<1)return;gm._slowAccum-=1}
@@ -1326,8 +1361,14 @@ function endGame(){
     else if(starCount===3){nextEl.textContent='かんぺき! すべての ⭐ をゲット!';nextEl.style.display=''}
     else nextEl.style.display='none';
     document.getElementById('eN').style.display=isNew&&s>0?'':'none';
+    // High score
+    const hsRankEl=document.getElementById('eHsRank');
+    const hsIdx=s>0?addHS(s,gm.myAnimal,gm.mode,gm.diff):-1;
+    if(hsIdx>=0&&hsIdx<HS_MAX){const medals=['👑 1い!','🥈 2い!','🥉 3い!','4い!','5い!'];
+      hsRankEl.textContent='🏆 ランキング '+medals[hsIdx];hsRankEl.style.display=''}
+    else hsRankEl.style.display='none';
     document.getElementById('ePC').textContent=stats.totalPlays+'かいめのプレイ';
-    if(isNew&&s>0){let fw=0;const fwI=setInterval(()=>{
+    if((isNew&&s>0)||(hsIdx>=0&&hsIdx<3)){let fw=0;const fwI=setInterval(()=>{
       for(let j=0;j<3;j++)emit(Math.random()*W,Math.random()*H*.5,30,{speed:12,size:8,
         colors:['#ffd93d','#ff7eb3','#7dd889','#5dd8cf','#b49cfc','#fff'],
         gravity:.04,shapes:['star','heart','diamond']});
@@ -1382,7 +1423,7 @@ document.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>
 document.getElementById('bgo').addEventListener('click',startGame);
 document.getElementById('bre').addEventListener('click',()=>{document.getElementById('es').classList.add('hide');startGame()});
 document.getElementById('bback').addEventListener('click',()=>{document.getElementById('es').classList.add('hide');
-  document.getElementById('ss').classList.remove('hide')});
+  document.getElementById('ss').classList.remove('hide');refreshStartHS()});
 document.getElementById('vol').addEventListener('click',()=>{initA();setM(!gm.muted)});
 document.getElementById('pauseBtn').addEventListener('click',e=>{e.stopPropagation();
   if(gm.paused)resumeGame();else pauseGame()});
@@ -1414,6 +1455,7 @@ document.getElementById('shareBtn').addEventListener('click',async()=>{
     try{await navigator.share({title:'アニマルつなぎ!',text})}catch(e){}}
   else{try{await navigator.clipboard.writeText(text);toast('📋 コピーしたよ!')}
     catch(e){toast('シェアできませんでした')}}});
+refreshStartHS();
 </script>
 </body>
 </html>
