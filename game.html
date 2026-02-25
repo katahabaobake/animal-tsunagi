@@ -190,11 +190,6 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
     <button class="mode-btn" data-m="daily">📅 デイリー</button>
   </div>
   <div class="daily-info" id="dailyInfo" style="display:none"></div>
-  <div class="dr" id="diffRow">
-    <button class="db on" data-d="easy">かんたん</button>
-    <button class="db" data-d="normal">ふつう</button>
-    <button class="db" data-d="hard">むずい!</button>
-  </div>
   <div class="hs-wrap" id="hsWrap"></div>
   <button class="btn bg" id="bgo">あそぶ!</button>
   <div class="bottom-btns">
@@ -253,10 +248,7 @@ const SKILLS=[
   {name:'パンダウェーブ',desc:'ちかくの25こ へんしん!',charge:22,fn:()=>skillAreaTransform()},
   {name:'レインボータイム',desc:'8びょう なんでもつながる!',charge:22,fn:()=>skillRainbowTime(8000)},
 ];
-const DIFF={
-  easy:  {time:80,types:4,balls:110,hint:2000,comboWin:3500,feverDur:10000},
-  normal:{time:65,types:5,balls:120,hint:4000,comboWin:2800,feverDur:8000},
-  hard:  {time:50,types:6,balls:130,hint:6000,comboWin:2000,feverDur:6000}};
+const CFG={time:70,types:5,balls:115,hint:3000,comboWin:3000,feverDur:9000};
 const PENTA=[262,294,330,392,440,523,587,660,784,880,1047,1175];
 const MISSIONS=[
   {s:100,m:'🎯 100てん とっぱ!'},{s:300,m:'🎯 300てん すごい!'},{s:600,m:'🎯 600てん いいかんじ!'},
@@ -291,7 +283,7 @@ let particles=[],trails=[],rings=[],speedLines=[];
 let shakeX=0,shakeY=0,shakeMag=0,flashAlpha=0;
 let displayScore=0,lastT=0,settled=false,hintGroup=null,hintT=0;
 let missionIdx=0;
-let gm={diff:'easy',mode:'timeattack',myAnimal:0,score:0,combo:0,maxCombo:0,popped:0,maxChain:0,
+let gm={mode:'timeattack',myAnimal:0,score:0,combo:0,maxCombo:0,popped:0,maxChain:0,
   timeLeft:60,totalTime:60,running:false,paused:false,fever:false,
   feverCount:0,lastClear:0,skillCharge:0,muted:false,_starting:false,
   _feverTO:null,_feverLabelTO:null,_feverStartT:0,_feverRemaining:0,
@@ -320,9 +312,9 @@ let dailyRng=null;
 const HS_MAX=5;
 let highScores=(()=>{try{return JSON.parse(localStorage.getItem('atHS')||'[]')}catch(e){return[]}})();
 function saveHS(){try{localStorage.setItem('atHS',JSON.stringify(highScores))}catch(e){}}
-function addHS(score,animal,mode,diff){
+function addHS(score,animal,mode){
   const d=new Date(),date=String(d.getMonth()+1)+'/'+String(d.getDate());
-  const entry={score,animal,mode,diff,date};
+  const entry={score,animal,mode,date};
   highScores.push(entry);highScores.sort((a,b)=>b.score-a.score);
   if(highScores.length>HS_MAX)highScores.length=HS_MAX;
   saveHS();return highScores.indexOf(entry)}
@@ -373,13 +365,15 @@ function nt(f,tp,d,v=.15,dl=0){if(!ac)return;const t=ac.currentTime+dl;const o=a
   o.type=tp;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);
   o.connect(g).connect(mg);o.start(t);o.stop(t+d)}
 function sfxConn(n){const i=Math.min(n-1,PENTA.length-1);
-  nt(PENTA[i],'sine',.1,.18);nt(PENTA[i]*1.5,'sine',.06,.05);
-  if(n>=5)nt(PENTA[i]*2,'sine',.08,.08);
-  if(n>=7){nt(PENTA[i]*1.25,'triangle',.1,.06);nt(PENTA[i]*2.5,'sine',.06,.04)}
+  const vol=Math.min(.15+n*.02,.3);
+  nt(PENTA[i],'sine',.12,vol);nt(PENTA[i]*1.5,'sine',.08,.08);
+  if(n>=4)nt(PENTA[i]*2,'sine',.1,.1);
+  if(n>=6){nt(PENTA[i]*1.25,'triangle',.12,.08);nt(PENTA[i]*2.5,'sine',.08,.06)}
+  if(n>=8){nt(PENTA[i]*3,'sine',.06,.05);nt(PENTA[i]*1.5,'triangle',.15,.07,.02)}
   if(n>=10&&ac){const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;
-    o.type='sine';o.frequency.setValueAtTime(PENTA[i],t);o.frequency.exponentialRampToValueAtTime(PENTA[i]*3,t+.15);
-    g.gain.setValueAtTime(.08,t);g.gain.exponentialRampToValueAtTime(.001,t+.15);
-    o.connect(g).connect(mg);o.start(t);o.stop(t+.15)}}
+    o.type='sine';o.frequency.setValueAtTime(PENTA[i],t);o.frequency.exponentialRampToValueAtTime(PENTA[i]*4,t+.2);
+    g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);
+    o.connect(g).connect(mg);o.start(t);o.stop(t+.2)}}
 function sfxPop(i,tot){const p=.8+i/Math.max(tot,1)*.8;nt(400*p,'sine',.1,.2);nt(700*p,'sine',.06,.08,.02);
   if(ac){const buf=ac.createBuffer(1,~~(ac.sampleRate*.04),ac.sampleRate);const d=buf.getChannelData(0);
     for(let j=0;j<d.length;j++)d[j]=(Math.random()-.5)*.15;const src=ac.createBufferSource();src.buffer=buf;
@@ -404,7 +398,7 @@ const BGM=[{m:[330,392,494,587,494,392,330,392],b:[165,165,196,196,247,247,165,1
   {m:[392,494,587,784,587,494,392,494],b:[196,196,247,247,294,294,196,196]},
   {m:[330,392,494,659,587,494,392,330],b:[165,165,196,196,294,294,165,165]}];
 function startBGM(bpmOv){if(bgmOn)return;bgmOn=true;bgmI=0;bgmP=0;
-  const baseBpm=gm.fever?170:130,comboBpm=Math.min(gm.combo*5,40);
+  const baseBpm=gm.fever?180:130,comboBpm=Math.min(gm.combo*10,80);
   const bpm=bpmOv||(baseBpm+comboBpm),iv=60000/bpm/2;
   (function t(){if(!bgmOn)return;const p=BGM[bgmP%BGM.length];
     nt(p.m[bgmI%8],'triangle',.09,.055);if(bgmI%2===0)nt(p.b[bgmI%8],'sine',.16,.035);
@@ -675,8 +669,8 @@ function physicsTick(){
 function initBalls(){
   balls=[];nextId=0;
   const rng=gm.mode==='daily'?dailyRng:Math.random;
-  const tc=DIFF[gm.diff].types;
-  const count=DIFF[gm.diff].balls;
+  const tc=CFG.types;
+  const count=CFG.balls;
   for(let i=0;i<count;i++){
     const x=areaL+ballR+rng()*(areaR-areaL-ballR*2);
     const y=areaT-ballR*(2+rng()*14);
@@ -684,7 +678,7 @@ function initBalls(){
     b.vy=3+rng()*4;b.vx=(rng()-.5)*2;
     balls.push(b)}}
 function checkSpawn(){
-  const target=DIFF[gm.diff].balls;
+  const target=CFG.balls;
   const alive=balls.filter(b=>!b.popping);
   const needed=target-alive.length-spawnQueue;
   if(needed>0){spawnQueue+=needed;
@@ -692,7 +686,7 @@ function checkSpawn(){
 function tickSpawn(){
   if(spawnQueue<=0)return;
   const perFrame=Math.min(spawnQueue,4);
-  const tc=DIFF[gm.diff].types;
+  const tc=CFG.types;
   for(let s=0;s<perFrame;s++){
     const x=areaL+ballR+Math.random()*(areaR-areaL-ballR*2);
     const sp=rollSpecial();
@@ -714,7 +708,7 @@ function findGroups(){
 function hasValid(){return findGroups().length>0}
 function ensureValid(){
   let att=0;
-  while(!hasValid()&&att<15){const tc=DIFF[gm.diff].types;
+  while(!hasValid()&&att<15){const tc=CFG.types;
     const alive=balls.filter(b=>!b.popping);shBuild(alive);
     // Smart shuffle: make nearby balls the same type
     for(let i=0;i<3;i++){const b=alive[~~(Math.random()*alive.length)];
@@ -751,10 +745,10 @@ function tryConnect(px,py){
     b.selected=true;
     if(chainType===-1&&b.special!=='rainbow')chainType=b.type;
     const boost=Math.min(chain.length*.06,.5);b.scale=1.4+boost;
-    chain.push(b);sfxConn(chain.length);haptic(10+chain.length*3);
-    if(chain.length>=5)triggerShake(chain.length*1.2);
-    if(chain.length>=5)flashAlpha=Math.min(flashAlpha+.06,.2);
-    if(chain.length===3){sfxValid();haptic(20)}
+    chain.push(b);sfxConn(chain.length);haptic(10+chain.length*5);
+    if(chain.length>=3)triggerShake(chain.length*1.5);
+    if(chain.length>=4)flashAlpha=Math.min(flashAlpha+.04+chain.length*.01,.3);
+    if(chain.length===3){sfxValid();haptic(25)}
     if(chain.length>=2){const prev=chain[chain.length-2];
       for(let i=0;i<5;i++){const t=i/5;
         trails.push({x:prev.x+(b.x-prev.x)*t+(Math.random()-.5)*10,
@@ -772,19 +766,26 @@ function beginPop(){
 function tickPop(dt){
   if(!popAnim)return;popAnim.time+=dt;const pa=popAnim,len=pa.len;
   if(pa.phase==='charge'){
-    const dur=Math.max(80,150-len*5);
-    pa.balls.forEach(b=>{const prog=Math.min(pa.time/dur,1);
-      b.scale=1+prog*.4;
-      b._shakeX=(Math.random()-.5)*prog*3;b._shakeY=(Math.random()-.5)*prog*3});
-    if(pa.time>=dur){pa.phase='explode';pa.time=0;
+    const dur=Math.max(100,180-len*4);
+    const prog=Math.min(pa.time/dur,1);
+    pa.balls.forEach(b=>{
+      b.scale=1+prog*.5+prog*prog*.3;
+      const shake=prog*prog*(2+len*.3);
+      b._shakeX=(Math.random()-.5)*shake;b._shakeY=(Math.random()-.5)*shake});
+    if(pa.time>=dur){pa.phase='hitstop';pa.time=0}}
+  else if(pa.phase==='hitstop'){
+    // Freeze frame: longer for bigger chains = more satisfying
+    const hsDur=len>=10?120:len>=7?80:len>=5?50:20;
+    pa.balls.forEach(b=>{b.scale=1.8;b._shakeX=(Math.random()-.5)*1.5;b._shakeY=(Math.random()-.5)*1.5});
+    if(pa.time>=hsDur){pa.phase='explode';pa.time=0;
       // Visual merikari: scale effects by chain length
       if(len>=5)triggerShake(6+len*3);
       if(len>=5)triggerFlash(.08+len*.03);
       if(len>=8){addRipple(W/2,H/2,'#ffd93d',W*.4);
         [0,.03,.06,.09].forEach((d,i)=>nt(200+i*100,'triangle',.08,.1,d))}
-      if(len>=10){triggerShake(25);triggerFlash(.5);
-        [[0,0],[W,0],[0,H],[W,H]].forEach(([x,y])=>emit(x,y,15,{speed:10,size:6,
-          colors:['#ff7eb3','#ffe066','#7dd889','#5dd8cf','#b49cfc'],gravity:.06,shapes:['star','heart','diamond']}))}
+      if(len>=10){triggerShake(30+len*2);triggerFlash(.6);
+        [[0,0],[W,0],[0,H],[W,H],[W/2,0],[W/2,H]].forEach(([x,y])=>emit(x,y,20,{speed:12,size:7,
+          colors:['#ff7eb3','#ffe066','#7dd889','#5dd8cf','#b49cfc','#ffd93d'],gravity:.04,shapes:['star','heart','diamond']}))}
       pa.balls.forEach((b,i)=>{b.popping=true;b.popT=0;b._shakeX=0;b._shakeY=0;sfxPop(i,len);
         const fx=ANIMAL_POP_FX[b.type]||ANIMAL_POP_FX[0];
         const emitCount=len<5?8:20+len*2;
@@ -822,30 +823,36 @@ function tickPop(dt){
 // ======== SCORE / COMBO ========
 function creditScore(pa){
   const len=pa.len,now=performance.now();
-  const base=len*20,chainBonus=len>=4?Math.floor(Math.pow(len-3,1.8)*15):0;
-  const win=DIFF[gm.diff].comboWin;
+  const base=len*20,chainBonus=len>=4?Math.floor(Math.pow(len-3,2.0)*18):0;
+  const win=CFG.comboWin;
   if(now-gm.lastClear<win)gm.combo++;else gm.combo=1;
   gm.lastClear=now;if(gm.combo>gm.maxCombo)gm.maxCombo=gm.combo;
   const cMul=1+Math.min(gm.combo-1,9)*.3,fMul=gm.fever?2:1;
   const earned=~~((base+chainBonus)*cMul*fMul);
   gm.score+=earned;gm.popped+=len;if(len>gm.maxChain)gm.maxChain=len;
   document.getElementById('sv').textContent=gm.score;updateComboUI();
+  // Escalating audio: pitch rises with chain length
   if(len>=5)sfxBig();
-  if(len>=20){toast('🤯 '+len+'つなぎ!! かみ!!!');triggerShake(30);triggerFlash(.5);
-    for(let i=0;i<4;i++)emit(Math.random()*W,Math.random()*H*.6,25,{speed:12,size:7,
-      colors:['#ffd93d','#ff7eb3','#7dd889','#5dd8cf','#b49cfc','#fff'],gravity:.03,shapes:['star','heart','diamond']})}
-  else if(len>=15){toast('🔥 '+len+'つなぎ!! やばい!!');triggerShake(20);triggerFlash(.3);
-    emit(W/2,H/2,30,{speed:10,size:6,colors:['#ffd93d','#ff7eb3','#fff'],gravity:.04,shapes:['star','diamond']})}
-  else if(len>=10)toast('🌟 '+len+'つなぎ! すごすぎ!');
-  else if(len>=7)toast('✨ '+len+'つなぎ! すごい!');
+  if(len>=8){for(let i=0;i<Math.min(len-7,6);i++)nt(600+i*150,'sine',.08,.06,i*.03)}
+  // Chain feedback with escalating effects
+  if(len>=20){toast('🤯 '+len+'つなぎ!! かみ!!!');triggerShake(40);triggerFlash(.6);
+    for(let i=0;i<5;i++)setTimeout(()=>emit(Math.random()*W,Math.random()*H*.6,30,{speed:14,size:8,
+      colors:['#ffd93d','#ff7eb3','#7dd889','#5dd8cf','#b49cfc','#fff'],gravity:.02,shapes:['star','heart','diamond']}),i*60)}
+  else if(len>=15){toast('🔥 '+len+'つなぎ!! やばい!!');triggerShake(25);triggerFlash(.4);
+    emit(W/2,H/2,35,{speed:11,size:7,colors:['#ffd93d','#ff7eb3','#fff'],gravity:.03,shapes:['star','diamond']})}
+  else if(len>=10){toast('🌟 '+len+'つなぎ! すごすぎ!');triggerShake(12);triggerFlash(.15)}
+  else if(len>=7){toast('✨ '+len+'つなぎ! すごい!');triggerShake(6)}
   else if(len>=5)toast('👍 '+len+'つなぎ! いいね!');
-  if(gm.combo>=2){sfxCombo(gm.combo);if(gm.combo%2===0){stopBGM();startBGM()}}
-  if(gm.combo>=6&&!gm.fever)activateFever();
-  if(gm.combo>=2&&len>=5)emitSpeedLines(gm.combo*2,gm.combo*.25);
+  // Combo escalation: BGM speeds up, effects intensify
+  if(gm.combo>=2){sfxCombo(gm.combo);stopBGM();startBGM();
+    haptic(15+gm.combo*8)}
+  if(gm.combo>=4&&!gm.fever)activateFever();
+  if(gm.combo>=2)emitSpeedLines(gm.combo*3+len,gm.combo*.3);
   const mid=pa.balls[~~(len/2)];
-  const popSz=Math.min(20+len*2+(gm.combo-1)*4,42);
-  scorePop(mid.x,mid.y,'+'+earned,cMul>=2.5?'#ffd93d':cMul>=2?'#7dd889':'#fff',popSz);
-  if(earned>=300)scorePop(W/2,H*.3,earned+'てん!','#ffd93d',36);
+  const popSz=Math.min(22+len*3+(gm.combo-1)*6,52);
+  const popCol=cMul>=2.5?'#ffd93d':cMul>=2?'#ff7eb3':cMul>=1.5?'#7dd889':'#fff';
+  scorePop(mid.x,mid.y,'+'+earned,popCol,popSz);
+  if(earned>=200)scorePop(W/2,H*.3,earned+'てん!','#ffd93d',Math.min(28+earned*.008,48));
   // Skill charge
   if(pa.type>=0&&pa.type===gm.myAnimal)gm.skillCharge+=len;
   else gm.skillCharge+=Math.floor(len*.4);
@@ -869,10 +876,13 @@ function creditScore(pa){
   checkAchievements()}
 function updateComboUI(){
   const ct=document.getElementById('ct');
-  if(gm.combo>=2){ct.textContent=gm.combo+'コンボ!'+'🔥'.repeat(Math.min(~~(gm.combo/2),4));
-    ct.style.opacity='1';ct.style.fontSize=Math.min(14+gm.combo*2,28)+'px';
-    ct.style.transform='scale(1.2)';setTimeout(()=>ct.style.transform='scale(1)',150)}
-  else{ct.style.opacity='0';ct.style.fontSize='14px'}}
+  if(gm.combo>=2){
+    const fire='🔥'.repeat(Math.min(~~(gm.combo/2),5));
+    ct.textContent=gm.combo+'コンボ!! '+fire;
+    ct.style.opacity='1';ct.style.fontSize=Math.min(16+gm.combo*3,36)+'px';
+    ct.style.color=gm.combo>=6?'#ffd93d':gm.combo>=4?'#ff7eb3':'#fff';
+    ct.style.transform='scale(1.4)';setTimeout(()=>ct.style.transform='scale(1)',180)}
+  else{ct.style.opacity='0';ct.style.fontSize='14px';ct.style.color='#ffd93d'}}
 
 // ======== SKILL ========
 function updateSkillUI(){
@@ -957,7 +967,7 @@ function activateFever(){
     clearTimeout(gm._feverLabelTO);gm._feverLabelTO=setTimeout(()=>{fl.style.opacity='0';fl.style.transform='translate(-50%,-50%) scale(.5)'},1500);
     sfxFever();toast('🔥 FEVER! スコア2ばい! 🔥');stopBGM();startBGM();
     emitSpeedLines(20,1.5);triggerShake(20);triggerFlash(.4);
-    const dur=DIFF[gm.diff].feverDur;
+    const dur=CFG.feverDur;
     gm._feverTO=setTimeout(()=>{if(!gm.running)return;endFever()},dur)},500)}
 function endFever(){
   gm.fever=false;document.getElementById('ff').classList.remove('on');
@@ -980,7 +990,7 @@ function drawFlash(){if(flashAlpha>.005){cx.save();cx.setTransform(dpr,0,0,dpr,0
     cx.globalAlpha=1;cx.restore();flashAlpha*=.88}}
 function tickComboBar(){
   if(gm.combo<=0){document.getElementById('cb').style.width='0%';return}
-  const win=DIFF[gm.diff].comboWin;
+  const win=CFG.comboWin;
   const elapsed=performance.now()-gm.lastClear;
   const pct=Math.max(0,1-elapsed/win);
   const cb=document.getElementById('cb');cb.style.width=(pct*100)+'%';
@@ -1171,7 +1181,7 @@ function pauseGame(){
   if(!gm.running||gm.paused||gm._starting)return;
   gm.paused=true;gm._pauseT=performance.now();
   clearInterval(gm._ti);gm._ti=null;stopBGM();
-  if(gm.fever&&gm._feverTO){const fd=DIFF[gm.diff].feverDur;gm._feverRemaining=Math.max(0,fd-(performance.now()-gm._feverStartT));
+  if(gm.fever&&gm._feverTO){const fd=CFG.feverDur;gm._feverRemaining=Math.max(0,fd-(performance.now()-gm._feverStartT));
     clearTimeout(gm._feverTO);gm._feverTO=null}
   clearTimeout(gm._feverLabelTO);
   if(dragging)endChain();
@@ -1267,12 +1277,10 @@ function countdown(){return new Promise(res=>{let n=3;const el=document.getEleme
 // ======== GAME FLOW ========
 async function startGame(){
   if(gm._starting)return;gm._starting=true;initA();
-  let d;
-  if(gm.mode==='daily'){d=DIFF.normal;dailyRng=mulberry32(getDailySeed())}
-  else{d=DIFF[gm.diff]}
+  if(gm.mode==='daily')dailyRng=mulberry32(getDailySeed());
   clearTimeout(gm._feverTO);clearTimeout(gm._feverLabelTO);clearInterval(gm._ti);clearInterval(gm._fireworkIV);stopBGM();
   Object.assign(gm,{score:0,combo:0,maxCombo:0,popped:0,maxChain:0,
-    timeLeft:d.time,totalTime:d.time,running:false,paused:false,fever:false,
+    timeLeft:CFG.time,totalTime:CFG.time,running:false,paused:false,fever:false,
     feverCount:0,lastClear:0,skillCharge:0,_feverRemaining:0,
     _rainbowTime:false,_rainbowRemain:0,_slowMo:1,_slowRemain:0,_slowAccum:0,_reachMul:1,_skillActive:false,
     _gameStartT:performance.now()});
@@ -1281,7 +1289,7 @@ async function startGame(){
   rings=[];speedLines=[];shakeX=shakeY=shakeMag=0;flashAlpha=0;
   toasts.forEach(t=>t.remove());toasts=[];scorePops.forEach(p=>p.remove());scorePops=[];
   document.getElementById('sv').textContent='0';
-  document.getElementById('tv').textContent=d.time;document.getElementById('tl').textContent='TIME';
+  document.getElementById('tv').textContent=CFG.time;document.getElementById('tl').textContent='TIME';
   document.getElementById('tv').style.color='';document.getElementById('tv').style.animation='none';
   document.getElementById('cb').style.width='0%';document.getElementById('ct').style.opacity='0';
   document.getElementById('ff').classList.remove('on');
@@ -1326,8 +1334,7 @@ function endGame(){
   if(gm.mode==='daily'){bestKey='daily_'+getTodayKey();th2={s1:280,s2:900,s3:2400};
     const tk=getTodayKey();if(!dailyBest[tk]||s>dailyBest[tk]){dailyBest[tk]=s;
       try{localStorage.setItem('atDaily',JSON.stringify(dailyBest))}catch(e){}}}
-  else{bestKey=gm.diff;
-    th2={easy:{s1:200,s2:650,s3:1600},normal:{s1:280,s2:900,s3:2400},hard:{s1:350,s2:1200,s3:3000}}[gm.diff]}
+  else{bestKey='main';th2={s1:250,s2:800,s3:2200}}
   const prev=gm.best[bestKey]||0,isNew=s>prev;
   if(isNew){gm.best[bestKey]=s;try{localStorage.setItem('atB3',JSON.stringify(gm.best))}catch(e){}}
   const starCount=s>=th2.s3?3:s>=th2.s2?2:s>=th2.s1?1:0;
@@ -1363,7 +1370,7 @@ function endGame(){
     document.getElementById('eN').style.display=isNew&&s>0?'':'none';
     // High score
     const hsRankEl=document.getElementById('eHsRank');
-    const hsIdx=s>0?addHS(s,gm.myAnimal,gm.mode,gm.diff):-1;
+    const hsIdx=s>0?addHS(s,gm.myAnimal,gm.mode):-1;
     if(hsIdx>=0&&hsIdx<HS_MAX){const medals=['👑 1い!','🥈 2い!','🥉 3い!','4い!','5い!'];
       hsRankEl.textContent='🏆 ランキング '+medals[hsIdx];hsRankEl.style.display=''}
     else hsRankEl.style.display='none';
@@ -1398,9 +1405,9 @@ function loop(now){
   if(gm.running&&!gm.paused){
     tickComboBar();tickDisplayScore();
     if(!dragging&&!popAnim&&settled){hintT+=dt;
-      const hintDelay=DIFF[gm.diff].hint;
+      const hintDelay=CFG.hint;
       if(hintT>hintDelay&&!hintGroup){hintGroup=findHint()}}
-    if(gm.combo>0){const comboWin=DIFF[gm.diff].comboWin;
+    if(gm.combo>0){const comboWin=CFG.comboWin;
       if(performance.now()-gm.lastClear>comboWin){gm.combo=0;updateComboUI()}}
     if(gm.fever&&Math.random()<.3)emitSpeedLines(2,1);
     else if(gm.combo>=3&&Math.random()<.15)emitSpeedLines(1,gm.combo*.15);
@@ -1414,8 +1421,6 @@ function loop(now){
 requestAnimationFrame(loop);
 
 // ======== UI LISTENERS ========
-document.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('[data-d]').forEach(x=>x.classList.remove('on'));b.classList.add('on');gm.diff=b.dataset.d}));
 document.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-a]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
   gm.myAnimal=parseInt(b.dataset.a);
@@ -1433,7 +1438,6 @@ document.getElementById('quitBtn').addEventListener('click',quitGame);
 document.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-m]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
   gm.mode=b.dataset.m;
-  document.getElementById('diffRow').style.display=gm.mode==='timeattack'?'':'none';
   updateDailyInfo()}));
 // Achievement/stats buttons
 document.getElementById('achBtn').addEventListener('click',e=>{e.stopPropagation();showAchScreen()});
