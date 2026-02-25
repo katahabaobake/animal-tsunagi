@@ -56,16 +56,22 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
   width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.15);
   background:rgba(255,255,255,.08);color:#fff;font-size:18px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
-#skillBtn{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));right:16px;z-index:15;
+#skillBtn{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:16px;z-index:15;
   width:64px;height:64px;border-radius:50%;border:3px solid rgba(255,255,255,.2);
   background:rgba(0,0,0,.4);font-size:28px;cursor:pointer;display:none;
   align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;
-  pointer-events:auto;transition:transform .15s}
+  pointer-events:auto;transition:transform .15s,border-color .3s,box-shadow .3s}
 #skillBtn:active{transform:scale(.9)}
 #skillBtn.ready{border-color:#ffd93d;box-shadow:0 0 20px rgba(255,217,61,.5),0 0 40px rgba(255,217,61,.2);
   animation:skillP .8s ease-in-out infinite alternate}
 @keyframes skillP{0%{transform:scale(1)}100%{transform:scale(1.12)}}
-#skillGauge{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));right:16px;z-index:14;
+#skillLabel{position:absolute;bottom:max(88px,calc(env(safe-area-inset-bottom) + 68px));left:16px;z-index:15;
+  pointer-events:none;display:none;text-align:center}
+#skillLabel span{display:inline-block;background:linear-gradient(135deg,#ffd93d,#ffb756);color:#000;
+  font-size:13px;font-weight:900;padding:4px 12px;border-radius:20px;white-space:nowrap;
+  box-shadow:0 2px 10px rgba(255,217,61,.4);animation:skillLabelBounce 1s ease-in-out infinite}
+@keyframes skillLabelBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+#skillGauge{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:16px;z-index:14;
   width:64px;height:64px;border-radius:50%;pointer-events:none;display:none;opacity:.35}
 .scr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
   justify-content:center;padding:20px;z-index:50;transition:opacity .4s}
@@ -169,7 +175,7 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%}
 </div>
 <div id="cw"><div id="cbg"><div id="cb"></div></div><div id="ct"></div></div>
 <div id="ff"></div><div id="fl">FEVER!</div><div id="cd"></div>
-<div id="skillGauge"></div><button id="skillBtn"></button>
+<div id="skillGauge"></div><button id="skillBtn"></button><div id="skillLabel"><span>つかえるよ!</span></div>
 <button id="vol">🔊</button>
 <div class="scr" id="ss">
   <div class="emos"><span style="--d:0s">🐱</span><span style="--d:.12s">🐶</span><span style="--d:.24s">🐰</span><span style="--d:.36s">🦊</span><span style="--d:.48s">🐼</span><span style="--d:.6s">🐸</span></div>
@@ -345,10 +351,11 @@ function resize(){
   const gw=W*gScale,gh=H*gScale;
   ['hud','cw'].forEach(id=>{const el=document.getElementById(id);
     el.style.left=gOffX+'px';el.style.width=gw+'px';el.style.right='auto'});
-  const sb=document.getElementById('skillBtn'),sg=document.getElementById('skillGauge');
-  const gameRight=screenW-gOffX-gw;
-  sb.style.right=(gameRight+16)+'px';
-  sg.style.right=(gameRight+16)+'px';
+  const sb=document.getElementById('skillBtn'),sg=document.getElementById('skillGauge'),sl=document.getElementById('skillLabel');
+  const gameLeft=gOffX,gameRight=screenW-gOffX-gw;
+  sb.style.left=(gameLeft+16)+'px';
+  sg.style.left=(gameLeft+16)+'px';
+  sl.style.left=(gameLeft+16)+'px';
   document.getElementById('vol').style.right=(gameRight+8)+'px'}
 function toVirt(cx2,cy2){return{x:(cx2-gOffX)/gScale,y:(cy2-gOffY)/gScale}}
 function toScr(vx,vy){return{x:gOffX+vx*gScale,y:gOffY+vy*gScale}}
@@ -888,9 +895,14 @@ function updateComboUI(){
 function updateSkillUI(){
   const skill=SKILLS[gm.myAnimal],pct=Math.min(gm.skillCharge/skill.charge,1);
   const btn=document.getElementById('skillBtn'),gauge=document.getElementById('skillGauge');
+  const label=document.getElementById('skillLabel');
   gauge.style.background=`conic-gradient(${TYPES[gm.myAnimal].color} ${pct*360}deg, transparent ${pct*360}deg)`;
-  if(pct>=1){btn.classList.add('ready');btn.textContent=TYPES[gm.myAnimal].emoji}
-  else btn.classList.remove('ready')}
+  if(pct>=1){
+    if(!btn.classList.contains('ready')){
+      btn.classList.add('ready');sfxValid();haptic(30);
+      label.style.display='block';label.querySelector('span').textContent='⚡ '+skill.name+'!'}
+    btn.textContent=TYPES[gm.myAnimal].emoji}
+  else{btn.classList.remove('ready');label.style.display='none'}}
 function activateSkill(){
   const skill=SKILLS[gm.myAnimal];
   if(gm.skillCharge<skill.charge||popAnim||gm.paused||gm._skillActive)return;
@@ -1202,7 +1214,7 @@ function quitGame(){
   document.getElementById('ff').classList.remove('on');document.getElementById('cb').style.width='0%';
   document.getElementById('ct').style.opacity='0';document.getElementById('ps').classList.add('hide');
   document.getElementById('hud').style.display='none';document.getElementById('cw').style.display='none';
-  document.getElementById('skillBtn').style.display='none';document.getElementById('skillGauge').style.display='none';
+  document.getElementById('skillBtn').style.display='none';document.getElementById('skillGauge').style.display='none';document.getElementById('skillLabel').style.display='none';
   document.getElementById('tl').textContent='TIME';document.getElementById('tv').style.color='';
   document.getElementById('urgency').style.opacity='0';document.getElementById('urgency').style.animation='none';
   document.getElementById('ss').classList.remove('hide');refreshStartHS()}
@@ -1300,6 +1312,7 @@ async function startGame(){
   document.getElementById('pauseBtn').textContent='⏸';
   const sb=document.getElementById('skillBtn');sb.style.display='flex';sb.classList.remove('ready');
   sb.textContent=TYPES[gm.myAnimal].emoji;document.getElementById('skillGauge').style.display='block';
+  document.getElementById('skillLabel').style.display='none';
   updateSkillUI();
   initBalls();await countdown();
   gm.running=true;gm._starting=false;gm._gameStartT=performance.now();startBGM();
@@ -1342,7 +1355,7 @@ function endGame(){
   const emj=starCount===3?'🏆':starCount===2?'🌟':starCount===1?'😊':'💪';
   setTimeout(()=>{
     document.getElementById('hud').style.display='none';document.getElementById('cw').style.display='none';
-    document.getElementById('skillBtn').style.display='none';document.getElementById('skillGauge').style.display='none';
+    document.getElementById('skillBtn').style.display='none';document.getElementById('skillGauge').style.display='none';document.getElementById('skillLabel').style.display='none';
     document.getElementById('eE').textContent=emj;
     const stEl=document.getElementById('eSt');stEl.innerHTML='';
     for(let i=0;i<3;i++){const sp=document.createElement('span');sp.textContent=i<starCount?'⭐':'☆';
